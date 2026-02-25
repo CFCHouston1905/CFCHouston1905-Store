@@ -1,552 +1,1832 @@
-import { useState, useEffect, useRef } from "react";
-import { client, urlFor } from "./sanity.js";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createClient } from '@sanity/client';
+import imageUrlBuilder from '@sanity/image-url';
 
-// =====================================================
-// BAYOU CITY BLUES / CHELSEA HOUSTON
-// Official Merch Store
-// =====================================================
-// Products are loaded from Sanity CMS.
-// Images are served through Sanity's image pipeline
-// (auto-resized, cropped, optimized).
-// Payments go through Stripe Checkout.
-// =====================================================
+// ─── Sanity Config ───
+const sanityClient = createClient({
+  projectId: 'a9vovusz',
+  dataset: 'production',
+  useCdn: true,
+  apiVersion: '2024-01-01',
+});
+const builder = imageUrlBuilder(sanityClient);
+const urlFor = (source) => builder.image(source);
 
-// ---------- FALLBACK DATA ----------
-// Used while Sanity loads, or if CMS isn't set up yet
-const FALLBACK_PRODUCTS = [
-  { _id: "f1", name: "Chelsea Houston Crest Tee", category: "apparel", price: 32, sizes: ["S","M","L","XL","2XL"], colors: ["Chelsea Blue","White","Navy"], description: "Classic ringspun cotton tee with the Chelsea Houston circle crest. Pre-shrunk, true to size.", featured: true },
-  { _id: "f2", name: "KTBFFH Matchday Jersey", category: "apparel", price: 45, sizes: ["S","M","L","XL","2XL"], colors: ["Chelsea Blue","White"], description: "Premium dry-fit jersey with the Bayou City Blues shield on chest and KTBFFH across the back.", featured: true },
-  { _id: "f3", name: "Bayou City Blues Hoodie", category: "apparel", price: 55, sizes: ["S","M","L","XL","2XL"], colors: ["Navy","Chelsea Blue"], description: "Heavyweight fleece-lined hoodie with embroidered Bayou City Blues shield.", featured: true },
-  { _id: "f4", name: "HOU/LDN 1905 Vintage Tee", category: "apparel", price: 35, sizes: ["S","M","L","XL"], colors: ["Heather Grey","Chelsea Blue"], description: "Distressed vintage print featuring the HOU/LDN 1905 mark." },
-  { _id: "f5", name: "Chelsea Houston Snapback", category: "hats", price: 28, sizes: ["One Size"], colors: ["Chelsea Blue","Navy","White"], description: "Structured snapback with 3D embroidered CH monogram.", featured: true },
-  { _id: "f6", name: "Matchday Scarf", category: "hats", price: 25, sizes: ["One Size"], colors: ["Chelsea Blue/White"], description: "Double-sided knit scarf. Bayou City Blues on one end, KTBFFH on the other." },
-  { _id: "f7", name: "Chelsea Houston Ceramic Mug", category: "drinkware", price: 18, sizes: ["One Size"], colors: ["Chelsea Blue","White"], description: "11oz ceramic mug with Chelsea Houston circle crest." },
-  { _id: "f8", name: "Pint Glass", category: "drinkware", price: 16, sizes: ["One Size"], colors: ["Clear"], description: "16oz pint glass with the Bayou City Blues shield." },
-  { _id: "f9", name: "Die-Cut Crest Sticker", category: "accessories", price: 5, sizes: ["One Size"], colors: ["Full Color"], description: "3-inch weatherproof vinyl die-cut." },
-  { _id: "f10", name: "Sticker Pack (6 designs)", category: "accessories", price: 12, sizes: ["One Size"], colors: ["Full Color"], description: "Six unique designs." },
-  { _id: "f11", name: "Carefree in the 713 Banner", category: "banners", price: 65, sizes: ["One Size"], colors: ["Yellow/Blue"], description: "Full-size supporters banner. Chelsea Houston shield, CH monogram, and Carefree in the 713 Since 2011.", featured: true },
-  { _id: "f12", name: "Paul Canoville Canners Banner", category: "banners", price: 65, sizes: ["One Size"], colors: ["Chelsea Blue"], description: "Paul Canoville tribute banner. Breaking Down Barriers.", featured: true },
+// ─── Fixtures Data ───
+const FIXTURES = [
+  { home: 'Arsenal', away: 'Chelsea', date: 'Sun, Mar 1', time: '11:30 AM', comp: 'Premier League' },
+  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '2:30 PM', comp: 'Premier League' },
+  { home: 'Wrexham', away: 'Chelsea', date: 'Sat, Mar 7', time: '12:45 PM', comp: 'FA Cup' },
+  { home: 'Chelsea', away: 'Newcastle', date: 'Fri, Mar 14', time: '1:30 PM', comp: 'Premier League' },
+  { home: 'Everton', away: 'Chelsea', date: 'Fri, Mar 21', time: '1:30 PM', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Man City', date: 'Fri, Apr 11', time: 'TBD', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Man United', date: 'Fri, Apr 18', time: 'TBD', comp: 'Premier League' },
+  { home: 'Brighton', away: 'Chelsea', date: 'Fri, Apr 25', time: 'TBD', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Nottm Forest', date: 'Sat, May 2', time: 'TBD', comp: 'Premier League' },
+  { home: 'Liverpool', away: 'Chelsea', date: 'Sat, May 9', time: 'TBD', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Tottenham', date: 'Sat, May 17', time: 'TBD', comp: 'Premier League' },
+  { home: 'Sunderland', away: 'Chelsea', date: 'Sat, May 24', time: 'TBD', comp: 'Premier League' },
 ];
 
-const EVENTS = [
-  { date: "SAT MAR 1", time: "6:30 AM CT", match: "Chelsea vs Manchester City", venue: "The Phoenix on Westheimer", type: "Premier League", note: "Doors open 6:00 AM. Breakfast tacos provided." },
-  { date: "SAT MAR 8", time: "9:00 AM CT", match: "Chelsea vs Wolves", venue: "The Phoenix on Westheimer", type: "Premier League", note: "Wear your gear for 10% off merch." },
-  { date: "TUE MAR 11", time: "2:00 PM CT", match: "Chelsea vs Real Madrid", venue: "The Phoenix on Westheimer", type: "Champions League", note: "Big screen. Big match. Be there." },
-  { date: "SAT MAR 15", time: "9:00 AM CT", match: "Chelsea vs Aston Villa", venue: "The Phoenix on Westheimer", type: "Premier League", note: null },
-];
+// ─── Styles ───
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
-const SIZE_CHART = {
-  headers: ["Size", "Chest", "Length", "Sleeve"],
-  rows: [["S",'34-36"','28"','8"'],["M",'38-40"','29"','8.5"'],["L",'42-44"','30"','9"'],["XL",'46-48"','31"','9.5"'],["2XL",'50-52"','32"','10"']],
-};
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-card: #111118;
+  --bg-card-hover: #16161f;
+  --bg-elevated: #1a1a24;
+  --chelsea-blue: #034694;
+  --chelsea-blue-light: #0a5cc1;
+  --chelsea-blue-dark: #022b5a;
+  --gold: #c8a951;
+  --gold-light: #dbc06e;
+  --gold-dim: #a08530;
+  --text-primary: #f0f0f5;
+  --text-secondary: #8a8a9a;
+  --text-muted: #55556a;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-gold: rgba(200,169,81,0.3);
+}
 
-const CATEGORIES = [
-  { key: "all", label: "All Products" },
-  { key: "apparel", label: "Apparel" },
-  { key: "hats", label: "Hats & Scarves" },
-  { key: "drinkware", label: "Drinkware" },
-  { key: "accessories", label: "Stickers & More" },
-  { key: "banners", label: "Banners & Flags" },
-];
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-// ---------- CONSISTENT PRODUCT IMAGE ----------
-// All images are displayed at the same aspect ratio (4:3)
-// Sanity auto-crops and resizes. Fallback shows a placeholder.
-const ProductImage = ({ product, size = "normal" }) => {
-  const h = size === "large" ? 400 : 260;
-  const imgW = size === "large" ? 600 : 400;
-  const imgH = size === "large" ? 400 : 260;
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
 
-  // If product has a Sanity image, use it
-  if (product.image) {
-    return (
-      <div style={{ width: "100%", height: h, borderRadius: size === "large" ? 16 : 12, overflow: "hidden", background: "#e4e9f0" }}>
-        <img
-          src={urlFor(product.image).width(imgW).height(imgH).fit("crop").auto("format").url()}
-          alt={product.name}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          loading="lazy"
-        />
-      </div>
-    );
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+::selection {
+  background: var(--chelsea-blue);
+  color: white;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--chelsea-blue-dark); border-radius: 3px; }
+
+/* ─── Announcement Bar ─── */
+.announce-bar {
+  background: var(--chelsea-blue);
+  padding: 8px 0;
+  overflow: hidden;
+  position: relative;
+}
+.announce-track {
+  display: flex;
+  gap: 60px;
+  animation: scroll-left 30s linear infinite;
+  white-space: nowrap;
+}
+.announce-track span {
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+  flex-shrink: 0;
+}
+.announce-track .gold-text { color: var(--gold); }
+@keyframes scroll-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ─── Header ─── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 40px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+}
+.header-left img { height: 44px; width: 44px; object-fit: contain; }
+.header-brand {
+  display: flex;
+  flex-direction: column;
+}
+.header-brand-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.header-brand-sub {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.header-nav a {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+.header-nav a:hover { color: var(--gold); }
+.cart-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--border-gold);
+  color: var(--gold);
+  padding: 8px 18px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cart-btn:hover {
+  background: var(--gold);
+  color: var(--bg-primary);
+}
+.cart-count {
+  background: var(--chelsea-blue);
+  color: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ─── Hero ─── */
+.hero {
+  position: relative;
+  min-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #020810 0%, #03244a 40%, #034694 70%, #022b5a 100%);
+}
+.hero-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+.hero-gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+}
+.hero-orb-1 {
+  width: 600px; height: 600px;
+  background: var(--chelsea-blue-light);
+  top: -200px; right: -100px;
+}
+.hero-orb-2 {
+  width: 400px; height: 400px;
+  background: var(--gold);
+  bottom: -100px; left: -50px;
+  opacity: 0.08;
+}
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 800px;
+  padding: 40px 24px;
+  animation: fadeUp 1s ease-out;
+}
+.hero-crest {
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 30px;
+  filter: drop-shadow(0 0 40px rgba(3,70,148,0.5));
+  animation: fadeUp 0.8s ease-out;
+}
+.hero-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.hero-tagline {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+.hero-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(42px, 7vw, 80px);
+  font-weight: 700;
+  line-height: 0.95;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+.hero-title .outline {
+  -webkit-text-stroke: 1.5px var(--text-primary);
+  color: transparent;
+}
+.hero-title .gold { color: var(--gold); }
+.hero-desc {
+  font-size: 17px;
+  color: rgba(255,255,255,0.6);
+  max-width: 500px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+  font-weight: 300;
+}
+.hero-btns {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.btn-primary:hover {
+  background: var(--gold-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(200,169,81,0.3);
+}
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.btn-outline:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.hero-vertical-mark {
+  position: absolute;
+  right: 5%;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.06;
+  height: 70vh;
+  pointer-events: none;
+}
+.hero-vertical-mark img {
+  height: 100%;
+  object-fit: contain;
+}
+.hero-divider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(to top, var(--bg-primary), transparent);
+}
+
+/* ─── Section Common ─── */
+.section {
+  padding: 80px 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.section-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 12px;
+  font-weight: 400;
+}
+.section-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.section-divider {
+  width: 40px;
+  height: 2px;
+  background: var(--gold);
+  margin: 16px 0 40px;
+}
+
+/* ─── Category Filters ─── */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+.filter-btn {
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+.filter-btn.active {
+  background: var(--chelsea-blue);
+  border-color: var(--chelsea-blue);
+  color: white;
+}
+
+/* ─── Product Grid ─── */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+.product-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  group: true;
+}
+.product-card:hover {
+  border-color: rgba(200,169,81,0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+.product-img-wrap {
+  position: relative;
+  aspect-ratio: 4/3;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.product-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+.product-card:hover .product-img-wrap img {
+  transform: scale(1.05);
+}
+.product-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--chelsea-blue);
+  color: white;
+  font-family: 'Oswald', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+}
+.product-featured-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  font-weight: 600;
+}
+.product-info {
+  padding: 16px 18px 20px;
+}
+.product-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.product-cat {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.product-price {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+/* ─── Product Detail Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s;
+}
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s;
+}
+.modal-close:hover {
+  background: var(--chelsea-blue);
+  border-color: var(--chelsea-blue);
+}
+.modal-image {
+  aspect-ratio: 1;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.modal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.modal-details {
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.modal-cat {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.modal-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.modal-price {
+  font-family: 'Oswald', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.modal-desc {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.option-group label {
+  display: block;
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.option-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pill {
+  padding: 8px 16px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pill:hover { border-color: var(--text-secondary); }
+.pill.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(200,169,81,0.08);
+}
+.add-cart-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: auto;
+}
+.add-cart-btn:hover {
+  background: var(--gold-light);
+  box-shadow: 0 6px 20px rgba(200,169,81,0.3);
+}
+
+/* ─── Fixtures ─── */
+.fixtures-section {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.fixture-venue-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-gold);
+  padding: 24px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.venue-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--chelsea-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.venue-info h4 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.venue-info p {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.venue-info a {
+  color: var(--gold);
+  text-decoration: none;
+  font-size: 13px;
+}
+.venue-info a:hover { text-decoration: underline; }
+.fixture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.fixture-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s;
+}
+.fixture-card:hover { border-color: rgba(200,169,81,0.2); }
+.fixture-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fixture-team {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.fixture-team.chelsea { color: var(--chelsea-blue-light); font-weight: 600; }
+.fixture-meta {
+  text-align: right;
+}
+.fixture-date {
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+.fixture-time {
+  font-size: 12px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.fixture-comp {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ─── About ─── */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+.about-shield {
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 60px rgba(3,70,148,0.3));
+}
+.about-shield img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.about-text h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+.about-text p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.about-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-subtle);
+}
+.stat-item {}
+.stat-num {
+  font-family: 'Oswald', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ─── Cart Drawer ─── */
+.cart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 300;
+  animation: fadeIn 0.2s;
+}
+.cart-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-subtle);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  animation: slideLeft 0.3s ease-out;
+}
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.cart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cart-header h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+}
+.cart-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+}
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+.cart-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cart-item-img {
+  width: 72px;
+  height: 72px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cart-item-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cart-item-info { flex: 1; }
+.cart-item-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.cart-item-variant {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.cart-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cart-qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-subtle);
+}
+.cart-qty button {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+}
+.cart-qty button:hover { color: var(--text-primary); }
+.cart-qty span {
+  width: 28px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cart-item-price {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.cart-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.cart-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+.cart-footer {
+  padding: 24px;
+  border-top: 1px solid var(--border-subtle);
+}
+.cart-shipping-bar {
+  background: var(--bg-primary);
+  padding: 12px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.cart-shipping-bar p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.shipping-progress {
+  height: 3px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.shipping-fill {
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.3s;
+}
+.cart-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.cart-total-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.cart-total-amount {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.checkout-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.checkout-btn:hover {
+  background: var(--gold-light);
+}
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--chelsea-blue);
+  color: white;
+  padding: 14px 28px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  z-index: 500;
+  animation: toastIn 0.3s, toastOut 0.3s 2.2s forwards;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(20px); } }
+
+/* ─── Chat Widget ─── */
+.chat-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  background: var(--chelsea-blue);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 150;
+  box-shadow: 0 4px 20px rgba(3,70,148,0.5);
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-toggle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 30px rgba(3,70,148,0.6);
+}
+.chat-window {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  height: 500px;
+  max-height: 60vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  z-index: 151;
+  display: flex;
+  flex-direction: column;
+  animation: fadeUp 0.3s;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.chat-header {
+  padding: 16px 20px;
+  background: var(--chelsea-blue);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-header-dot {
+  width: 8px;
+  height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+}
+.chat-header h4 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.chat-msg.bot {
+  background: var(--bg-elevated);
+  align-self: flex-start;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+.chat-msg.user {
+  background: var(--chelsea-blue);
+  align-self: flex-end;
+  color: white;
+}
+.chat-input-wrap {
+  display: flex;
+  border-top: 1px solid var(--border-subtle);
+}
+.chat-input-wrap input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: none;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+.chat-input-wrap input::placeholder {
+  color: var(--text-muted);
+}
+.chat-send {
+  background: var(--gold);
+  border: none;
+  padding: 0 18px;
+  color: var(--bg-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.chat-send:hover { background: var(--gold-light); }
+
+/* ─── Footer ─── */
+footer {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  padding: 60px 40px 30px;
+}
+.footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+.footer-brand img {
+  height: 50px;
+  margin-bottom: 16px;
+}
+.footer-brand p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 280px;
+}
+.footer-col h5 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.footer-col a {
+  display: block;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+.footer-col a:hover { color: var(--gold); }
+.footer-bottom {
+  padding-top: 24px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.footer-links {
+  display: flex;
+  gap: 24px;
+}
+.footer-links a {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.footer-links a:hover { color: var(--gold); }
+
+/* ─── Animations ─── */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── No Products Placeholder ─── */
+.no-products {
+  text-align: center;
+  padding: 60px 20px;
+  grid-column: 1 / -1;
+}
+.no-products p {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* ─── Mobile hamburger ─── */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+}
+.mobile-nav-overlay {
+  display: none;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .modal-content { grid-template-columns: 1fr; max-height: 95vh; }
+  .modal-image { aspect-ratio: 16/9; }
+  .about-grid { grid-template-columns: 1fr; text-align: center; }
+  .about-shield { max-width: 250px; }
+  .about-stats { justify-content: center; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .hero-vertical-mark { display: none; }
+}
+@media (max-width: 768px) {
+  header { padding: 0 20px; }
+  .header-nav { display: none; }
+  .mobile-menu-btn { display: block; }
+  .mobile-nav-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.97);
+    z-index: 400;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    animation: fadeIn 0.2s;
   }
+  .mobile-nav-overlay a {
+    font-family: 'Oswald', sans-serif;
+    font-size: 24px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .mobile-nav-overlay a:hover { color: var(--gold); }
+  .mobile-nav-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 28px;
+    cursor: pointer;
+  }
+  .section { padding: 50px 20px; }
+  .hero { min-height: 70vh; }
+  .hero-crest { width: 120px; height: 120px; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .fixture-grid { grid-template-columns: 1fr; }
+  .fixture-venue-card { flex-direction: column; text-align: center; }
+}
+`;
 
-  // Fallback placeholder (used before CMS is connected)
-  const catEmoji = { apparel: "\ud83d\udc55", hats: "\ud83e\udde2", drinkware: "\u2615", accessories: "\u2728", banners: "\ud83c\udff3\ufe0f" };
-  return (
-    <div style={{ width: "100%", height: h, borderRadius: size === "large" ? 16 : 12, background: "linear-gradient(150deg, #f5f7fa 0%, #e4e9f0 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 1px 1px, rgba(3,70,148,0.03) 1px, transparent 0)", backgroundSize: "24px 24px" }} />
-      <span style={{ fontSize: size === "large" ? "3.5rem" : "2.5rem", zIndex: 1 }}>{catEmoji[product.category] || "\ud83d\udecd\ufe0f"}</span>
-      <span style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: ".15em", color: "#034694", fontFamily: "'Oswald', sans-serif", zIndex: 1 }}>{(product.category || "").toUpperCase()}</span>
-      <div style={{ position: "absolute", top: size === "large" ? 16 : 10, left: size === "large" ? 16 : 10, background: "#034694", color: "#fff", padding: "3px 10px", borderRadius: 4, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", fontFamily: "'Oswald', sans-serif" }}>ADD PHOTO IN CMS</div>
-    </div>
-  );
+// ─── Category map ───
+const CATEGORY_MAP = {
+  all: 'All Products',
+  apparel: 'Apparel',
+  'hats-scarves': 'Hats & Scarves',
+  drinkware: 'Drinkware',
+  'stickers-more': 'Stickers & More',
+  'banners-flags': 'Banners & Flags',
 };
 
-// ---------- CSS ----------
-const injectStyles = () => {
-  if (document.getElementById("bcb-css")) return;
-  const s = document.createElement("style"); s.id = "bcb-css";
-  s.textContent = `
-    @keyframes bcb-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes bcb-in{from{opacity:0}to{opacity:1}}
-    @keyframes bcb-slide{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes bcb-marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-    .bcb-up{animation:bcb-up .6s ease-out forwards;opacity:0}
-    .bcb-in{animation:bcb-in .5s ease-out forwards;opacity:0}
-    .bcb-slide{animation:bcb-slide .5s ease-out forwards;opacity:0}
-    .bcb-card{transition:all .3s cubic-bezier(.25,.46,.45,.94)!important}
-    .bcb-card:hover{transform:translateY(-5px)!important;box-shadow:0 14px 40px rgba(3,70,148,.14)!important}
-    .bcb-btn{transition:all .2s ease}.bcb-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(3,70,148,.2)}
-    .bcb-input:focus{outline:none;border-color:#034694!important;box-shadow:0 0 0 3px rgba(3,70,148,.1)}
-    .bcb-navlink{position:relative}.bcb-navlink::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:2px;background:#D4AF37;transition:width .3s}.bcb-navlink:hover::after{width:100%}
-    .bcb-marquee{animation:bcb-marquee 30s linear infinite}
-    *{box-sizing:border-box;margin:0;padding:0}::selection{background:#034694;color:#fff}input::placeholder{color:#94a3b8}
-    body{-webkit-font-smoothing:antialiased}
-  `;
-  document.head.appendChild(s);
-};
-
-// ---------- COLORS & FONTS ----------
-const C = { p: "#034694", g: "#D4AF37", dk: "#0a1628", t: "#1a2332", tl: "#5a6577", bg: "#f8fafb", w: "#fff", b: "#e2e8f0", bl: "#f0f3f6" };
-const F = { d: "'Oswald', sans-serif", b: "'Source Sans 3', sans-serif" };
-
-// =====================================================
-// MAIN STORE COMPONENT
-// =====================================================
+// ─── Main App ───
 export default function App() {
-  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
   const [cart, setCart] = useState([]);
-  const [view, setView] = useState("shop");
-  const [selProd, setSelProd] = useState(null);
-  const [selSize, setSelSize] = useState("");
-  const [selColor, setSelColor] = useState("");
-  const [cat, setCat] = useState("all");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+  const [toast, setToast] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
-  const [msgs, setMsgs] = useState([]);
-  const [chatIn, setChatIn] = useState("");
-  const [chatLoad, setChatLoad] = useState(false);
-  const [sizeGuide, setSizeGuide] = useState(false);
-  const [toast, setToast] = useState(false);
-  const [email, setEmail] = useState("");
-  const [emailDone, setEmailDone] = useState(false);
-  const [stripeLoading, setStripeLoading] = useState(false);
-  const chatEnd = useRef(null);
-  const shopRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'bot', text: 'Hey Blue! Welcome to the Bayou City Blues store. Ask me about any of our gear, sizing, or upcoming watch parties. KTBFFH!' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
+  const chatEndRef = useRef(null);
 
-  useEffect(() => { injectStyles(); }, []);
-  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
-
-  // ---------- LOAD PRODUCTS FROM SANITY ----------
+  // Fetch from Sanity
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const query = `*[_type == "product"] | order(featured desc, name asc) {
-          _id, name, category, price, sizes, colors, description, featured,
-          "image": image.asset->url,
-          image
-        }`;
-        const data = await client.fetch(query);
-        if (data && data.length > 0) {
-          setProducts(data);
-        }
-        // If no products in Sanity yet, keep fallback data
-      } catch (err) {
-        console.log("Sanity not connected yet, using fallback products. This is normal during setup.");
-      }
-      setLoading(false);
-    };
-    fetchProducts();
+    sanityClient
+      .fetch(`*[_type == "product"] | order(_createdAt desc) {
+        _id, name, price, category, description, image, sizes, colors, featured
+      }`)
+      .then((data) => {
+        setProducts(data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  // ---------- CART LOGIC ----------
-  const addToCart = (p, sz, cl) => {
-    const ex = cart.find(i => i.p._id === p._id && i.sz === sz && i.cl === cl);
-    if (ex) setCart(cart.map(i => i === ex ? { ...i, qty: i.qty + 1 } : i));
-    else setCart([...cart, { p, sz, cl, qty: 1 }]);
-    setToast(true); setTimeout(() => setToast(false), 2000);
-  };
-  const rmCart = (i) => setCart(cart.filter((_, x) => x !== i));
-  const updQty = (i, d) => setCart(cart.map((it, x) => x !== i ? it : { ...it, qty: Math.max(0, it.qty + d) }).filter(it => it.qty > 0));
-  const cartTotal = cart.reduce((s, i) => s + i.p.price * i.qty, 0);
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const filtered = cat === "all" ? products : products.filter(p => p.category === cat);
-  const featured = products.filter(p => p.featured);
+  // Filtered products
+  const filtered = filter === 'all'
+    ? products
+    : products.filter((p) => {
+        const cat = (p.category || '').toLowerCase().replace(/[\s&]+/g, '-');
+        return cat === filter || (p.category || '').toLowerCase() === filter;
+      });
 
-  const nav = (v, prod = null) => {
-    setView(v); setSelProd(prod);
-    if (prod) { setSelSize(prod.sizes?.[0] || "One Size"); setSelColor(prod.colors?.[0] || ""); }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  // Category counts
+  const catCounts = {};
+  products.forEach((p) => {
+    const cat = (p.category || '').toLowerCase().replace(/[\s&]+/g, '-');
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
+  });
+
+  // Cart functions
+  const addToCart = (product, size, color) => {
+    const key = `${product._id}-${size}-${color}`;
+    setCart((prev) => {
+      const existing = prev.find((i) => i.key === key);
+      if (existing) {
+        return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + 1 } : i));
+      }
+      return [...prev, {
+        key,
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        size,
+        color,
+        image: product.image,
+        qty: 1,
+      }];
+    });
+    setToast(`${product.name} added to cart`);
+    setTimeout(() => setToast(''), 2500);
+    setSelectedProduct(null);
   };
 
-  // ---------- STRIPE CHECKOUT ----------
+  const updateQty = (key, delta) => {
+    setCart((prev) =>
+      prev
+        .map((i) => (i.key === key ? { ...i, qty: i.qty + delta } : i))
+        .filter((i) => i.qty > 0)
+    );
+  };
+
+  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
+  const freeShipThreshold = 75;
+  const freeShipProgress = Math.min(cartTotal / freeShipThreshold, 1);
+
+  // Checkout
   const handleCheckout = async () => {
-    setStripeLoading(true);
     try {
-      const res = await fetch("/.netlify/functions/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: cart.map(i => ({
-            name: i.p.name,
-            price: i.p.price,
-            size: i.sz,
-            color: i.cl,
-            qty: i.qty,
+          items: cart.map((i) => ({
+            name: `${i.name}${i.size ? ` - ${i.size}` : ''}${i.color ? ` - ${i.color}` : ''}`,
+            price: i.price,
+            quantity: i.qty,
           })),
         }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url; // Redirect to Stripe
-      } else {
-        alert("Something went wrong with checkout. Please try again.");
-      }
-    } catch (err) {
-      alert("Checkout is not connected yet. See SETUP-GUIDE.md for Stripe setup instructions.");
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setToast('Checkout not available yet. Set up Stripe to enable.');
+      setTimeout(() => setToast(''), 3000);
     }
-    setStripeLoading(false);
   };
 
-  // ---------- AI CHAT ----------
+  // Chat
   const sendChat = async () => {
-    if (!chatIn.trim()) return;
-    const msg = chatIn.trim(); setChatIn("");
-    setMsgs(p => [...p, { role: "user", text: msg }]); setChatLoad(true);
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
+    setChatLoading(true);
+
     try {
-      const sys = `You are the Bayou City Blues / Chelsea Houston shopping assistant. Chelsea supporters group in Houston, TX, est. 2011. "Carefree in the 713." Help customers find merch.\n\nProducts:\n${products.map(p => `- ${p.name} ($${p.price}) - ${p.description}`).join("\n")}\n\nEvents:\n${EVENTS.map(e => `- ${e.date} ${e.time}: ${e.match} at ${e.venue}`).join("\n")}\n\nBe friendly, concise (2-3 sentences). KTBFFH!`;
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, system: sys, messages: [...msgs.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.text })), { role: "user", content: msg }] }),
+      const res = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatMessage: userMsg }),
       });
-      const d = await r.json();
-      setMsgs(p => [...p, { role: "assistant", text: d.content?.[0]?.text || "Sorry, try again!" }]);
-    } catch { setMsgs(p => [...p, { role: "assistant", text: "Something went wrong!" }]); }
-    setChatLoad(false);
+      const data = await res.json();
+      setChatMessages((prev) => [...prev, { role: 'bot', text: data.reply || "Sorry, I couldn't process that. Try again!" }]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'bot', text: "I'm having trouble connecting right now. Check back soon! In the meantime, browse our shop or check the fixtures schedule." },
+      ]);
+    }
+    setChatLoading(false);
   };
 
-  // ---------- CATEGORY COUNTS ----------
-  const catCounts = {};
-  CATEGORIES.forEach(c => {
-    catCounts[c.key] = c.key === "all" ? products.length : products.filter(p => p.category === c.key).length;
-  });
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    setMobileNav(false);
+  };
+
   return (
-    <div style={{ fontFamily: F.b, background: C.bg, color: C.t, minHeight: "100vh" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <>
+      <style>{CSS}</style>
 
-      {/* ANNOUNCEMENT BAR */}
-      <div style={{ background: C.dk, color: "rgba(255,255,255,.85)", padding: "8px 0", overflow: "hidden", fontSize: ".72rem", letterSpacing: ".1em", fontWeight: 500 }}>
-        <div className="bcb-marquee" style={{ display: "flex", gap: "3rem", whiteSpace: "nowrap", width: "max-content" }}>
-          {[0,1].map(k => <div key={k} style={{ display: "flex", gap: "3rem" }}>
-            <span>{"\u26bd"} FREE SHIPPING OVER $75</span><span style={{ color: C.g }}>{"\u2605"}</span>
-            <span>CAREFREE IN THE 713 SINCE 2011</span><span style={{ color: C.g }}>{"\u2605"}</span>
-            <span>KTBFFH</span><span style={{ color: C.g }}>{"\u2605"}</span>
-          </div>)}
+      {/* Announcement Bar */}
+      <div className="announce-bar">
+        <div className="announce-track">
+          {[...Array(3)].map((_, i) => (
+            <span key={i}>
+              Free shipping on orders over $75 &nbsp;&nbsp; ★ &nbsp;&nbsp;
+              <span className="gold-text">Next Match: Arsenal vs Chelsea | Sun, Mar 1 | 11:30 AM CT</span>
+              &nbsp;&nbsp; ★ &nbsp;&nbsp;
+              Watch Parties at Little Woodrow's EaDo &nbsp;&nbsp; ★ &nbsp;&nbsp;
+              <span className="gold-text">Carefree in the 713 Since 2011</span>
+              &nbsp;&nbsp; ★ &nbsp;&nbsp;
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* HEADER */}
-      <header style={{ background: C.w, borderBottom: `1px solid ${C.b}`, position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(12px)", backgroundColor: "rgba(255,255,255,.95)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72 }}>
-          <button onClick={() => nav("shop")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-            <img src="/images/logo-circle.png" alt="Chelsea Houston" style={{ height: 48, width: 48, objectFit: "contain" }} onError={(e) => { e.target.style.display = 'none'; }} />
-            <div>
-              <div style={{ fontFamily: F.d, fontSize: "1.2rem", fontWeight: 700, color: C.p, letterSpacing: ".06em", lineHeight: 1.1 }}>CHELSEA HOUSTON</div>
-              <div style={{ fontSize: ".58rem", color: C.tl, letterSpacing: ".22em", fontWeight: 600 }}>BAYOU CITY BLUES {"\u2022"} OFFICIAL MERCH</div>
-            </div>
-          </button>
-          <nav style={{ display: "flex", alignItems: "center", gap: 28 }}>
-            {[["Shop","shop"],["Matchday","events"]].map(([l,v]) => (
-              <button key={v} className="bcb-navlink" onClick={() => nav(v)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.d, fontSize: ".88rem", fontWeight: 600, color: view === v ? C.p : C.tl, letterSpacing: ".08em", padding: "4px 0" }}>{l.toUpperCase()}</button>
-            ))}
-            <button onClick={() => nav("cart")} className="bcb-btn" style={{ background: C.p, color: "#fff", border: "none", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: ".82rem", fontFamily: F.d, letterSpacing: ".05em", display: "flex", alignItems: "center", gap: 8 }}>
-              CART {cartCount > 0 && <span style={{ background: C.g, color: C.dk, borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".68rem", fontWeight: 800 }}>{cartCount}</span>}
-            </button>
-          </nav>
+      {/* Header */}
+      <header>
+        <div className="header-left" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <img src="/images/logo-circle.png" alt="Chelsea Houston" />
+          <div className="header-brand">
+            <span className="header-brand-name">Chelsea Houston</span>
+            <span className="header-brand-sub">Bayou City Blues</span>
+          </div>
         </div>
+
+        <div className="header-nav">
+          <a onClick={() => scrollTo('shop')}>Shop</a>
+          <a onClick={() => scrollTo('fixtures')}>Fixtures</a>
+          <a onClick={() => scrollTo('about')}>About</a>
+          <button className="cart-btn" onClick={() => setCartOpen(true)}>
+            Cart {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
+          </button>
+        </div>
+
+        <button className="mobile-menu-btn" onClick={() => setMobileNav(true)}>☰</button>
       </header>
 
-      {toast && <div className="bcb-in" style={{ position: "fixed", top: 90, right: 24, background: C.p, color: "#fff", padding: "12px 24px", borderRadius: 10, zIndex: 100, fontWeight: 600, fontSize: ".88rem", boxShadow: "0 8px 32px rgba(3,70,148,.3)" }}>{"\u2713"} Added to cart</div>}
+      {/* Mobile Nav */}
+      {mobileNav && (
+        <div className="mobile-nav-overlay">
+          <button className="mobile-nav-close" onClick={() => setMobileNav(false)}>✕</button>
+          <a onClick={() => scrollTo('shop')}>Shop</a>
+          <a onClick={() => scrollTo('fixtures')}>Fixtures</a>
+          <a onClick={() => scrollTo('about')}>About</a>
+          <a onClick={() => { setMobileNav(false); setCartOpen(true); }}>Cart ({cartCount})</a>
+        </div>
+      )}
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      {/* Hero */}
+      <section className="hero">
+        <div className="hero-noise" />
+        <div className="hero-gradient-orb hero-orb-1" />
+        <div className="hero-gradient-orb hero-orb-2" />
+        <div className="hero-vertical-mark">
+          <img src="/images/logo-vertical.png" alt="" />
+        </div>
+        <div className="hero-content">
+          <div className="hero-crest">
+            <img src="/images/logo-circle.png" alt="Chelsea Houston 1905" />
+          </div>
+          <div className="hero-tagline">Carefree in the 713 since 2011</div>
+          <h1 className="hero-title">
+            <span className="outline">Official</span><br />
+            Supporters <span className="gold">Merch</span>
+          </h1>
+          <p className="hero-desc">
+            Gear up for matchday. Rep the badge from Houston to London. Always Blue.
+          </p>
+          <div className="hero-btns">
+            <button className="btn-primary" onClick={() => scrollTo('shop')}>Shop Collection</button>
+            <button className="btn-outline" onClick={() => scrollTo('fixtures')}>Watch Parties</button>
+          </div>
+        </div>
+        <div className="hero-divider" />
+      </section>
 
-        {/* HERO */}
-        {view === "shop" && !selProd && (
-          <section className="bcb-up" style={{ margin: "32px 0", borderRadius: 20, overflow: "hidden", position: "relative", background: `linear-gradient(135deg, ${C.dk} 0%, ${C.p} 50%, #1a5ab8 100%)`, minHeight: 400, display: "flex", alignItems: "center" }}>
-            <div style={{ position: "absolute", inset: 0, opacity: .06 }}>
-              <div style={{ position: "absolute", top: -50, right: -50, width: 400, height: 400, borderRadius: "50%", border: "60px solid #fff" }} />
-              <div style={{ position: "absolute", bottom: -80, left: -80, width: 300, height: 300, borderRadius: "50%", border: "40px solid #fff" }} />
-            </div>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, transparent, ${C.g}, transparent)` }} />
-            <div style={{ position: "relative", zIndex: 2, padding: "48px 56px", maxWidth: 620 }}>
-              <div style={{ display: "inline-block", background: "rgba(212,175,55,.15)", border: `1px solid ${C.g}`, borderRadius: 6, padding: "6px 14px", marginBottom: 20 }}>
-                <span style={{ color: C.g, fontSize: ".72rem", fontWeight: 700, letterSpacing: ".15em", fontFamily: F.d }}>CAREFREE IN THE 713 SINCE 2011</span>
-              </div>
-              <h1 style={{ fontFamily: F.d, fontSize: "3.2rem", fontWeight: 700, color: "#fff", lineHeight: 1.05, letterSpacing: ".02em", marginBottom: 16 }}>
-                OFFICIAL<br />SUPPORTERS<br /><span style={{ color: C.g }}>MERCH</span>
-              </h1>
-              <p style={{ color: "rgba(255,255,255,.7)", fontSize: "1.05rem", lineHeight: 1.6, marginBottom: 28, maxWidth: 420 }}>
-                Gear up for matchday. Rep the badge everywhere. Houston to London, always Blue.
-              </p>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button onClick={() => { setCat("all"); shopRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="bcb-btn" style={{ background: C.g, color: C.dk, border: "none", padding: "14px 32px", borderRadius: 10, fontFamily: F.d, fontWeight: 700, fontSize: "1rem", letterSpacing: ".06em", cursor: "pointer" }}>SHOP ALL</button>
-                <button onClick={() => nav("events")} className="bcb-btn" style={{ background: "rgba(255,255,255,.12)", color: "#fff", border: "1px solid rgba(255,255,255,.25)", padding: "14px 28px", borderRadius: 10, fontFamily: F.d, fontWeight: 600, fontSize: "1rem", letterSpacing: ".06em", cursor: "pointer" }}>MATCHDAY INFO</button>
-              </div>
-            </div>
-          </section>
-        )}
+      {/* Shop Section */}
+      <section className="section" id="shop">
+        <div className="section-label">Collection</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 className="section-title">Shop All</h2>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: "'Oswald', sans-serif", letterSpacing: '0.1em' }}>
+            {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+          </span>
+        </div>
+        <div className="section-divider" />
 
-        {/* FEATURED */}
-        {view === "shop" && !selProd && featured.length > 0 && (
-          <section style={{ margin: "48px 0 24px" }}>
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ fontFamily: F.d, fontSize: "1.5rem", fontWeight: 700, letterSpacing: ".04em", color: C.dk }}>FEATURED GEAR</h2>
-              <div style={{ width: 40, height: 3, background: C.g, borderRadius: 2, marginTop: 8 }} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
-              {featured.slice(0, 6).map((p, i) => (
-                <button key={p._id} className="bcb-card bcb-up" style={{ animationDelay: `${i*.1}s`, background: C.w, border: `1px solid ${C.bl}`, borderRadius: 14, overflow: "hidden", cursor: "pointer", textAlign: "left", padding: 0 }} onClick={() => nav("product", p)}>
-                  <ProductImage product={p} />
-                  <div style={{ padding: "14px 16px 18px" }}>
-                    <div style={{ fontFamily: F.d, fontSize: ".9rem", fontWeight: 600, color: C.dk, letterSpacing: ".02em", marginBottom: 4 }}>{p.name}</div>
-                    <div style={{ color: C.p, fontWeight: 700, fontSize: "1rem", fontFamily: F.d }}>${p.price}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+        <div className="filter-row">
+          <button
+            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            All ({products.length})
+          </button>
+          {Object.entries(CATEGORY_MAP).filter(([k]) => k !== 'all').map(([key, label]) => (
+            <button
+              key={key}
+              className={`filter-btn ${filter === key ? 'active' : ''}`}
+              onClick={() => setFilter(key)}
+            >
+              {label} ({catCounts[key] || 0})
+            </button>
+          ))}
+        </div>
 
-        {/* ALL PRODUCTS */}
-        {view === "shop" && !selProd && (
-          <section ref={shopRef} style={{ margin: "48px 0" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <div>
-                <h2 style={{ fontFamily: F.d, fontSize: "1.5rem", fontWeight: 700, letterSpacing: ".04em", color: C.dk }}>ALL PRODUCTS</h2>
-                <div style={{ width: 40, height: 3, background: C.g, borderRadius: 2, marginTop: 8 }} />
-              </div>
-              <span style={{ fontSize: ".78rem", color: C.tl }}>{filtered.length} items</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
-              {CATEGORIES.map(c => (
-                <button key={c.key} onClick={() => setCat(c.key)} className="bcb-btn" style={{ padding: "8px 18px", borderRadius: 999, border: `1.5px solid ${cat === c.key ? C.p : C.b}`, background: cat === c.key ? C.p : "transparent", color: cat === c.key ? "#fff" : C.tl, cursor: "pointer", fontWeight: 600, fontSize: ".8rem", display: "flex", alignItems: "center", gap: 6 }}>
-                  {c.label} <span style={{ background: cat === c.key ? "rgba(255,255,255,.2)" : C.bl, padding: "1px 7px", borderRadius: 999, fontSize: ".68rem" }}>{catCounts[c.key] || 0}</span>
-                </button>
-              ))}
-            </div>
-            {loading ? (
-              <div style={{ textAlign: "center", padding: "64px 0", color: C.tl }}>Loading products...</div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 20 }}>
-                {filtered.map((p, i) => (
-                  <button key={p._id} className="bcb-card bcb-up" style={{ animationDelay: `${i*.05}s`, background: C.w, border: `1px solid ${C.bl}`, borderRadius: 14, overflow: "hidden", cursor: "pointer", textAlign: "left", padding: 0 }} onClick={() => nav("product", p)}>
-                    <ProductImage product={p} />
-                    <div style={{ padding: "14px 16px 18px" }}>
-                      <div style={{ fontFamily: F.d, fontSize: ".9rem", fontWeight: 600, color: C.dk, letterSpacing: ".02em", marginBottom: 4 }}>{p.name}</div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ color: C.p, fontWeight: 700, fontSize: "1rem", fontFamily: F.d }}>${p.price}</span>
-                        <span style={{ fontSize: ".62rem", fontWeight: 600, letterSpacing: ".1em", color: C.tl, textTransform: "uppercase" }}>{(p.sizes?.length || 0) > 1 ? `${p.sizes.length} sizes` : p.sizes?.[0] || ""}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* PRODUCT DETAIL */}
-        {view === "product" && selProd && (
-          <section className="bcb-in" style={{ margin: "32px 0 48px" }}>
-            <button onClick={() => nav("shop")} style={{ background: "none", border: "none", color: C.p, cursor: "pointer", fontWeight: 600, fontSize: ".85rem", marginBottom: 24 }}>{"\u2190"} Back to shop</button>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
-              <ProductImage product={selProd} size="large" />
-              <div>
-                <h1 style={{ fontFamily: F.d, fontSize: "1.9rem", fontWeight: 700, color: C.dk, marginBottom: 8, lineHeight: 1.15 }}>{selProd.name}</h1>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, color: C.p, fontFamily: F.d, marginBottom: 16 }}>${selProd.price}</div>
-                <p style={{ color: C.tl, lineHeight: 1.7, marginBottom: 28, fontSize: ".95rem" }}>{selProd.description}</p>
-                {/* Size */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: ".72rem", fontWeight: 700, color: C.tl, letterSpacing: ".12em", fontFamily: F.d }}>SIZE</span>
-                    {selProd.category === "apparel" && <button onClick={() => setSizeGuide(!sizeGuide)} style={{ background: "none", border: "none", color: C.p, fontSize: ".72rem", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Size Guide</button>}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {(selProd.sizes || []).map(s => (
-                      <button key={s} onClick={() => setSelSize(s)} className="bcb-btn" style={{ padding: "10px 20px", borderRadius: 8, border: `1.5px solid ${selSize === s ? C.p : C.b}`, background: selSize === s ? C.p : "transparent", color: selSize === s ? "#fff" : C.t, cursor: "pointer", fontWeight: 600, fontSize: ".85rem", minWidth: 52, textAlign: "center" }}>{s}</button>
-                    ))}
-                  </div>
-                  {sizeGuide && (
-                    <div style={{ marginTop: 16, background: C.w, border: `1px solid ${C.b}`, borderRadius: 12, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                        <span style={{ fontFamily: F.d, fontWeight: 700 }}>SIZE GUIDE</span>
-                        <button onClick={() => setSizeGuide(false)} style={{ background: "none", border: "none", cursor: "pointer", color: C.tl }}>{"\u2715"}</button>
-                      </div>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".8rem" }}>
-                        <thead><tr>{SIZE_CHART.headers.map((h,i) => <th key={i} style={{ textAlign: "left", padding: "8px 12px", borderBottom: `2px solid ${C.b}`, fontWeight: 700, color: C.tl, fontSize: ".68rem" }}>{h.toUpperCase()}</th>)}</tr></thead>
-                        <tbody>{SIZE_CHART.rows.map((row,ri) => <tr key={ri} style={{ background: ri % 2 === 0 ? C.bl : "transparent" }}>{row.map((cell,ci) => <td key={ci} style={{ padding: "8px 12px", fontWeight: ci === 0 ? 700 : 400 }}>{cell}</td>)}</tr>)}</tbody>
-                      </table>
+        {loading ? (
+          <div className="no-products">
+            <p>Loading products...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="no-products">
+            <p>
+              {products.length === 0
+                ? 'No products yet. Add products in Sanity Studio to see them here.'
+                : 'No products in this category yet.'}
+            </p>
+          </div>
+        ) : (
+          <div className="product-grid">
+            {filtered.map((product, idx) => (
+              <div
+                key={product._id}
+                className="product-card"
+                onClick={() => {
+                  setSelectedProduct(product);
+                  setSelectedSize(product.sizes?.[0] || '');
+                  setSelectedColor(product.colors?.[0] || '');
+                }}
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                <div className="product-img-wrap">
+                  {product.image ? (
+                    <img src={urlFor(product.image).width(600).height(450).fit('crop').url()} alt={product.name} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src="/images/logo-circle.png" alt="" style={{ width: '60px', opacity: 0.15 }} />
                     </div>
                   )}
+                  <div className="product-badge">{product.category || 'Merch'}</div>
+                  {product.featured && <div className="product-featured-badge">Featured</div>}
                 </div>
-                {/* Color */}
-                {selProd.colors && selProd.colors.length > 0 && (
-                  <div style={{ marginBottom: 28 }}>
-                    <div style={{ fontSize: ".72rem", fontWeight: 700, color: C.tl, letterSpacing: ".12em", fontFamily: F.d, marginBottom: 10 }}>COLOR</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {selProd.colors.map(c => (
-                        <button key={c} onClick={() => setSelColor(c)} className="bcb-btn" style={{ padding: "10px 20px", borderRadius: 8, border: `1.5px solid ${selColor === c ? C.p : C.b}`, background: selColor === c ? C.p : "transparent", color: selColor === c ? "#fff" : C.t, cursor: "pointer", fontWeight: 600, fontSize: ".85rem" }}>{c}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <button onClick={() => addToCart(selProd, selSize, selColor)} className="bcb-btn" style={{ background: C.p, color: "#fff", border: "none", padding: "16px 0", borderRadius: 12, fontWeight: 700, fontSize: "1.05rem", cursor: "pointer", fontFamily: F.d, letterSpacing: ".06em", width: "100%" }}>ADD TO CART</button>
-                <div style={{ display: "flex", gap: 12, fontSize: ".78rem", color: C.tl, justifyContent: "center", marginTop: 12 }}>
-                  <span>{"\u2713"} Printed in Houston</span><span>{"\u00b7"}</span><span>{"\u2713"} Ships in 3-5 days</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* EVENTS */}
-        {view === "events" && (
-          <section className="bcb-up" style={{ margin: "32px 0 48px" }}>
-            <div style={{ background: `linear-gradient(135deg, ${C.dk} 0%, ${C.p} 100%)`, borderRadius: 20, padding: 48, marginBottom: 32 }}>
-              <div style={{ color: C.g, fontSize: ".75rem", fontWeight: 700, letterSpacing: ".2em", fontFamily: F.d, marginBottom: 8 }}>UPCOMING MATCHES</div>
-              <h1 style={{ fontFamily: F.d, fontSize: "2.2rem", fontWeight: 700, color: "#fff" }}>MATCHDAY WATCH PARTIES</h1>
-              <p style={{ color: "rgba(255,255,255,.7)", fontSize: ".95rem", marginTop: 8 }}>Join the Bayou City Blues at the pub. Carefree in the 713.</p>
-            </div>
-            {EVENTS.map((e, i) => (
-              <div key={i} className="bcb-card bcb-slide" style={{ animationDelay: `${i*.1}s`, background: C.w, border: `1px solid ${C.bl}`, borderRadius: 14, overflow: "hidden", display: "flex", marginBottom: 16 }}>
-                <div style={{ background: C.p, color: "#fff", padding: "20px 24px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 110 }}>
-                  <div style={{ fontFamily: F.d, fontSize: ".7rem", letterSpacing: ".15em", opacity: .8 }}>{e.date.split(" ")[0]}</div>
-                  <div style={{ fontFamily: F.d, fontSize: "1.8rem", fontWeight: 700, lineHeight: 1.1 }}>{e.date.split(" ")[1]}</div>
-                  <div style={{ fontFamily: F.d, fontSize: "1rem", fontWeight: 600 }}>{e.date.split(" ")[2]}</div>
-                </div>
-                <div style={{ padding: "20px 28px", flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ background: e.type === "Champions League" ? "rgba(212,175,55,.12)" : "rgba(3,70,148,.08)", color: e.type === "Champions League" ? C.g : C.p, padding: "3px 10px", borderRadius: 4, fontSize: ".65rem", fontWeight: 700, letterSpacing: ".1em", fontFamily: F.d }}>{e.type.toUpperCase()}</span>
-                    <span style={{ color: C.tl, fontSize: ".82rem" }}>{e.time}</span>
-                  </div>
-                  <div style={{ fontFamily: F.d, fontSize: "1.2rem", fontWeight: 700, color: C.dk, marginBottom: 4 }}>{e.match}</div>
-                  <div style={{ color: C.tl, fontSize: ".88rem" }}>{"\ud83d\udccd"} {e.venue}</div>
-                  {e.note && <div style={{ marginTop: 8, color: C.p, fontSize: ".82rem", fontWeight: 600 }}>{e.note}</div>}
+                <div className="product-info">
+                  <div className="product-name">{product.name}</div>
+                  <div className="product-cat">{product.category || 'Merch'}</div>
+                  <div className="product-price">${product.price?.toFixed(2)}</div>
                 </div>
               </div>
             ))}
-          </section>
+          </div>
         )}
+      </section>
 
-        {/* CART */}
-        {view === "cart" && (
-          <section className="bcb-in" style={{ margin: "32px 0 48px" }}>
-            <h2 style={{ fontFamily: F.d, fontSize: "1.8rem", fontWeight: 700, marginBottom: 24 }}>YOUR CART</h2>
-            {cart.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "64px 0", color: C.tl }}>
-                <p style={{ fontSize: "1.1rem", marginBottom: 20 }}>Your cart is empty</p>
-                <button onClick={() => nav("shop")} className="bcb-btn" style={{ background: C.p, color: "#fff", border: "none", padding: "12px 32px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontFamily: F.d }}>SHOP NOW</button>
+      {/* Fixtures Section */}
+      <section className="fixtures-section" id="fixtures">
+        <div className="section" style={{ padding: '80px 0' }}>
+          <div style={{ padding: '0 40px' }}>
+            <div className="section-label">Matchday</div>
+            <h2 className="section-title">Fixtures & Watch Parties</h2>
+            <div className="section-divider" />
+
+            <div className="fixture-venue-card">
+              <div className="venue-icon">📍</div>
+              <div className="venue-info">
+                <h4>Little Woodrow's EaDo</h4>
+                <p>801 St Emanuel St, Houston, TX 77003</p>
+                <p style={{ marginTop: '4px' }}>
+                  Every Chelsea match. All Blues welcome.{' '}
+                  <a href="https://www.google.com/maps/place/Little+Woodrow's+EaDo" target="_blank" rel="noopener noreferrer">
+                    Get Directions →
+                  </a>
+                </p>
               </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 32, alignItems: "start" }}>
-                <div>
-                  {cart.map((item, i) => (
-                    <div key={i} style={{ display: "flex", gap: 16, padding: 20, background: C.w, border: `1px solid ${C.bl}`, borderRadius: 12, marginBottom: 12, alignItems: "center" }}>
-                      <div style={{ width: 72, height: 54, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: C.bl }}>
-                        {item.p.image ? (
-                          <img src={urlFor(item.p.image).width(144).height(108).fit("crop").url()} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        ) : (
-                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>{"\ud83d\udc55"}</div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: F.d, fontWeight: 600, fontSize: ".9rem" }}>{item.p.name}</div>
-                        <div style={{ fontSize: ".78rem", color: C.tl }}>{item.sz} / {item.cl}</div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <button onClick={() => updQty(i, -1)} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.b}`, background: "transparent", cursor: "pointer", fontWeight: 700 }}>-</button>
-                        <span style={{ fontWeight: 700, minWidth: 24, textAlign: "center", fontFamily: F.d }}>{item.qty}</span>
-                        <button onClick={() => updQty(i, 1)} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.b}`, background: "transparent", cursor: "pointer", fontWeight: 700 }}>+</button>
-                      </div>
-                      <div style={{ fontWeight: 700, color: C.p, minWidth: 55, textAlign: "right", fontFamily: F.d }}>${item.p.price * item.qty}</div>
-                      <button onClick={() => rmCart(i)} style={{ background: "none", border: "none", color: C.tl, cursor: "pointer" }}>{"\u2715"}</button>
-                    </div>
-                  ))}
+            </div>
+
+            <div className="fixture-grid">
+              {FIXTURES.map((f, i) => (
+                <div key={i} className="fixture-card">
+                  <div className="fixture-teams">
+                    <span className={`fixture-team ${f.home === 'Chelsea' ? 'chelsea' : ''}`}>{f.home}</span>
+                    <span className={`fixture-team ${f.away === 'Chelsea' ? 'chelsea' : ''}`}>{f.away}</span>
+                  </div>
+                  <div className="fixture-meta">
+                    <div className="fixture-date">{f.date}</div>
+                    <div className="fixture-time">{f.time}</div>
+                    <div className="fixture-comp">{f.comp}</div>
+                  </div>
                 </div>
-                <div style={{ background: C.w, border: `1px solid ${C.bl}`, borderRadius: 16, padding: 28, position: "sticky", top: 100 }}>
-                  <h3 style={{ fontFamily: F.d, fontSize: "1rem", fontWeight: 700, marginBottom: 20 }}>ORDER SUMMARY</h3>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: ".9rem", color: C.tl }}>
-                    <span>Subtotal</span><span style={{ fontWeight: 600, color: C.t }}>${cartTotal}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: ".9rem", color: C.tl }}>
-                    <span>Shipping</span><span style={{ fontWeight: 600, color: cartTotal >= 75 ? "#16a34a" : C.t }}>{cartTotal >= 75 ? "FREE" : "$5.99"}</span>
-                  </div>
-                  {cartTotal < 75 && <div style={{ fontSize: ".78rem", color: C.p, marginBottom: 8 }}>Add ${(75 - cartTotal).toFixed(2)} more for free shipping</div>}
-                  <div style={{ borderTop: `2px solid ${C.b}`, marginTop: 16, paddingTop: 16, display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
-                    <span style={{ fontFamily: F.d }}>TOTAL</span>
-                    <span style={{ fontFamily: F.d, fontSize: "1.4rem", color: C.p }}>${cartTotal >= 75 ? cartTotal : (cartTotal + 5.99).toFixed(2)}</span>
-                  </div>
-                  <button onClick={handleCheckout} disabled={stripeLoading} className="bcb-btn" style={{ background: C.p, color: "#fff", border: "none", padding: 16, borderRadius: 12, fontWeight: 700, fontSize: "1rem", cursor: "pointer", width: "100%", marginTop: 20, fontFamily: F.d, opacity: stripeLoading ? .7 : 1 }}>
-                    {stripeLoading ? "REDIRECTING TO STRIPE..." : "CHECKOUT"}
-                  </button>
-                  <div style={{ textAlign: "center", marginTop: 10, fontSize: ".72rem", color: C.tl }}>Secure payments by Stripe</div>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
-        {/* NEWSLETTER */}
-        {view === "shop" && !selProd && (
-          <section style={{ margin: "48px 0", background: C.dk, borderRadius: 20, padding: 48, textAlign: "center" }}>
-            <h2 style={{ fontFamily: F.d, fontSize: "1.5rem", fontWeight: 700, color: "#fff", marginBottom: 8 }}>JOIN THE BAYOU CITY BLUES</h2>
-            <p style={{ color: "rgba(255,255,255,.6)", marginBottom: 24, fontSize: ".95rem" }}>New drops, matchday events, and exclusive deals.</p>
-            {emailDone ? (
-              <div style={{ color: C.g, fontFamily: F.d, fontSize: "1.1rem", fontWeight: 700 }}>{"\u2713"} YOU'RE IN! KTBFFH!</div>
-            ) : (
-              <div style={{ display: "flex", gap: 10, maxWidth: 420, margin: "0 auto" }}>
-                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email" className="bcb-input" style={{ flex: 1, padding: "14px 18px", borderRadius: 10, border: "1.5px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.08)", color: "#fff", fontSize: ".95rem", fontFamily: F.b }} />
-                <button onClick={() => { if (email) setEmailDone(true); }} className="bcb-btn" style={{ background: C.g, color: C.dk, border: "none", padding: "14px 28px", borderRadius: 10, fontFamily: F.d, fontWeight: 700, cursor: "pointer" }}>SIGN UP</button>
+      {/* About Section */}
+      <section className="section" id="about">
+        <div className="about-grid">
+          <div className="about-shield">
+            <img src="/images/logo-shield.jpeg" alt="Bayou City Blues Crest" />
+          </div>
+          <div className="about-text">
+            <div className="section-label">Our Story</div>
+            <h3>Bayou City Blues</h3>
+            <div className="section-divider" />
+            <p>
+              Founded in 2011, the Bayou City Blues are Houston's official Chelsea FC supporters group.
+              What started as a handful of Blues gathering at a local pub has grown into one of the
+              largest and most passionate Chelsea communities in the United States.
+            </p>
+            <p>
+              Every matchday, we pack Little Woodrow's EaDo to sing, cheer, and suffer together.
+              From the highs of Champions League glory to the lows of a rough Saturday, we're always
+              here. Houston to London, always Blue.
+            </p>
+            <div className="about-stats">
+              <div className="stat-item">
+                <div className="stat-num">2011</div>
+                <div className="stat-label">Founded</div>
               </div>
-            )}
-          </section>
-        )}
-      </main>
+              <div className="stat-item">
+                <div className="stat-num">713</div>
+                <div className="stat-label">Houston Area Code</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-num">1905</div>
+                <div className="stat-label">Chelsea Est.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* FOOTER */}
-      <footer style={{ borderTop: `1px solid ${C.b}`, marginTop: 48, background: C.w, padding: "40px 24px 24px", textAlign: "center" }}>
-        <div style={{ fontFamily: F.d, fontSize: "1.05rem", fontWeight: 700, color: C.p, letterSpacing: ".06em" }}>CHELSEA HOUSTON</div>
-        <div style={{ color: C.tl, fontSize: ".82rem", marginTop: 4 }}>Bayou City Blues {"\u2022"} Carefree in the 713 since 2011</div>
-        <div style={{ color: C.tl, fontSize: ".72rem", marginTop: 16 }}>{"\u00a9"} 2025 Chelsea Houston / Bayou City Blues. Not affiliated with Chelsea Football Club. KTBFFH {"\ud83e\udd81"}</div>
+      {/* Footer */}
+      <footer>
+        <div className="footer-inner">
+          <div className="footer-grid">
+            <div className="footer-brand">
+              <img src="/images/logo-circle.png" alt="Chelsea Houston" />
+              <p>
+                Houston's official Chelsea FC supporters group. Carefree in the 713 since 2011.
+              </p>
+            </div>
+            <div className="footer-col">
+              <h5>Shop</h5>
+              <a onClick={() => { setFilter('apparel'); scrollTo('shop'); }}>Apparel</a>
+              <a onClick={() => { setFilter('hats-scarves'); scrollTo('shop'); }}>Hats & Scarves</a>
+              <a onClick={() => { setFilter('drinkware'); scrollTo('shop'); }}>Drinkware</a>
+              <a onClick={() => { setFilter('stickers-more'); scrollTo('shop'); }}>Stickers & More</a>
+              <a onClick={() => { setFilter('banners-flags'); scrollTo('shop'); }}>Banners & Flags</a>
+            </div>
+            <div className="footer-col">
+              <h5>Club</h5>
+              <a onClick={() => scrollTo('fixtures')}>Fixtures</a>
+              <a onClick={() => scrollTo('about')}>About Us</a>
+              <a href="https://www.chelseafc.com" target="_blank" rel="noopener noreferrer">Chelsea FC</a>
+            </div>
+            <div className="footer-col">
+              <h5>Watch Parties</h5>
+              <a href="https://www.google.com/maps/place/Little+Woodrow's+EaDo" target="_blank" rel="noopener noreferrer">
+                Little Woodrow's EaDo
+              </a>
+              <a>801 St Emanuel St</a>
+              <a>Houston, TX 77003</a>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <span className="footer-copy">
+              &copy; {new Date().getFullYear()} Bayou City Blues / Chelsea Houston. Not affiliated with Chelsea FC.
+            </span>
+            <div className="footer-links">
+              <a href="/privacy">Privacy</a>
+              <a href="/terms">Terms</a>
+            </div>
+          </div>
+        </div>
       </footer>
 
-      {/* CHAT */}
-      <button onClick={() => setChatOpen(!chatOpen)} style={{ position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%", background: C.p, color: "#fff", border: "none", cursor: "pointer", fontSize: "1.4rem", boxShadow: "0 6px 24px rgba(3,70,148,.35)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {chatOpen ? "\u2715" : "\ud83d\udcac"}
-      </button>
-      {chatOpen && (
-        <div className="bcb-in" style={{ position: "fixed", bottom: 92, right: 24, width: 370, maxHeight: 480, background: C.w, border: `1px solid ${C.b}`, borderRadius: 20, boxShadow: "0 16px 48px rgba(0,0,0,.15)", zIndex: 60, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ background: C.p, color: "#fff", padding: "14px 20px" }}>
-            <div style={{ fontFamily: F.d, fontSize: ".9rem", fontWeight: 700 }}>BAYOU CITY BLUES ASSISTANT</div>
-            <div style={{ fontSize: ".6rem", opacity: .7 }}>Merch, sizing, matchday info</div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8, minHeight: 180, maxHeight: 300 }}>
-            {msgs.length === 0 && <div style={{ color: C.tl, fontSize: ".86rem", textAlign: "center", padding: "28px 16px", lineHeight: 1.6 }}>Need help finding gear? Ask me anything! KTBFFH {"\u26bd"}</div>}
-            {msgs.map((m, i) => <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", background: m.role === "user" ? C.p : C.bl, color: m.role === "user" ? "#fff" : C.t, padding: "10px 14px", borderRadius: 14, maxWidth: "85%", fontSize: ".84rem", lineHeight: 1.5 }}>{m.text}</div>)}
-            {chatLoad && <div style={{ color: C.tl, fontSize: ".8rem", fontStyle: "italic" }}>Thinking...</div>}
-            <div ref={chatEnd} />
-          </div>
-          <div style={{ padding: 10, borderTop: `1px solid ${C.bl}`, display: "flex", gap: 8 }}>
-            <input value={chatIn} onChange={e => setChatIn(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} placeholder="Ask anything..." className="bcb-input" style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.b}`, fontSize: ".88rem", fontFamily: F.b, background: C.bg }} />
-            <button onClick={sendChat} style={{ background: C.p, color: "#fff", border: "none", borderRadius: 10, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>{"\u2192"}</button>
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedProduct(null)}>✕</button>
+            <div className="modal-image">
+              {selectedProduct.image ? (
+                <img src={urlFor(selectedProduct.image).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
+                  <img src="/images/logo-circle.png" alt="" style={{ width: '80px', opacity: 0.15 }} />
+                </div>
+              )}
+            </div>
+            <div className="modal-details">
+              <div className="modal-cat">{selectedProduct.category || 'Merch'}</div>
+              <div className="modal-name">{selectedProduct.name}</div>
+              <div className="modal-price">${selectedProduct.price?.toFixed(2)}</div>
+              {selectedProduct.description && (
+                <div className="modal-desc">{selectedProduct.description}</div>
+              )}
+              {selectedProduct.sizes?.length > 0 && (
+                <div className="option-group">
+                  <label>Size</label>
+                  <div className="option-pills">
+                    {selectedProduct.sizes.map((s) => (
+                      <button key={s} className={`pill ${selectedSize === s ? 'active' : ''}`} onClick={() => setSelectedSize(s)}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedProduct.colors?.length > 0 && (
+                <div className="option-group">
+                  <label>Color</label>
+                  <div className="option-pills">
+                    {selectedProduct.colors.map((c) => (
+                      <button key={c} className={`pill ${selectedColor === c ? 'active' : ''}`} onClick={() => setSelectedColor(c)}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button className="add-cart-btn" onClick={() => addToCart(selectedProduct, selectedSize, selectedColor)}>
+                Add to Cart
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Cart Drawer */}
+      {cartOpen && (
+        <>
+          <div className="cart-overlay" onClick={() => setCartOpen(false)} />
+          <div className="cart-drawer">
+            <div className="cart-header">
+              <h3>Your Cart ({cartCount})</h3>
+              <button className="cart-close" onClick={() => setCartOpen(false)}>✕</button>
+            </div>
+            <div className="cart-items">
+              {cart.length === 0 ? (
+                <div className="cart-empty">
+                  <div className="cart-empty-icon">🛒</div>
+                  <p>Your cart is empty</p>
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.key} className="cart-item">
+                    <div className="cart-item-img">
+                      {item.image ? (
+                        <img src={urlFor(item.image).width(150).height(150).fit('crop').url()} alt={item.name} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', background: 'var(--bg-elevated)' }} />
+                      )}
+                    </div>
+                    <div className="cart-item-info">
+                      <div className="cart-item-name">{item.name}</div>
+                      <div className="cart-item-variant">
+                        {[item.size, item.color].filter(Boolean).join(' / ') || 'One size'}
+                      </div>
+                      <div className="cart-item-bottom">
+                        <div className="cart-qty">
+                          <button onClick={() => updateQty(item.key, -1)}>-</button>
+                          <span>{item.qty}</span>
+                          <button onClick={() => updateQty(item.key, 1)}>+</button>
+                        </div>
+                        <div className="cart-item-price">${(item.price * item.qty).toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {cart.length > 0 && (
+              <div className="cart-footer">
+                <div className="cart-shipping-bar">
+                  <p>
+                    {cartTotal >= freeShipThreshold
+                      ? '✓ You qualify for free shipping!'
+                      : `$${(freeShipThreshold - cartTotal).toFixed(2)} away from free shipping`}
+                  </p>
+                  <div className="shipping-progress">
+                    <div className="shipping-fill" style={{ width: `${freeShipProgress * 100}%` }} />
+                  </div>
+                </div>
+                <div className="cart-total-row">
+                  <span className="cart-total-label">Total</span>
+                  <span className="cart-total-amount">${cartTotal.toFixed(2)}</span>
+                </div>
+                <button className="checkout-btn" onClick={handleCheckout}>
+                  Proceed to Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
+
+      {/* Chat Widget */}
+      <button className="chat-toggle" onClick={() => setChatOpen(!chatOpen)}>
+        {chatOpen ? '✕' : '💬'}
+      </button>
+      {chatOpen && (
+        <div className="chat-window">
+          <div className="chat-header">
+            <div className="chat-header-dot" />
+            <h4>Blues Assistant</h4>
+          </div>
+          <div className="chat-messages">
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`chat-msg ${msg.role}`}>
+                {msg.text}
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="chat-msg bot" style={{ opacity: 0.5 }}>Thinking...</div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="chat-input-wrap">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+              placeholder="Ask about merch, sizing, watch parties..."
+            />
+            <button className="chat-send" onClick={sendChat}>→</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
