@@ -1254,12 +1254,15 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try { const saved = window.localStorage.getItem('bcb-cart'); return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [modalQty, setModalQty] = useState(1);
   const [toast, setToast] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -1270,11 +1273,16 @@ export default function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const chatEndRef = useRef(null);
 
+  // Save cart to localStorage
+  useEffect(() => {
+    try { window.localStorage.setItem('bcb-cart', JSON.stringify(cart)); } catch {}
+  }, [cart]);
+
   // Fetch from Sanity
   useEffect(() => {
     sanityClient
       .fetch(`*[_type == "product"] | order(_createdAt desc) {
-        _id, name, price, category, description, image, gallery[]{ asset->{_id, url}, label }, sizes, colors, featured
+        _id, name, price, category, description, image, gallery, sizes, colors, featured
       }`)
       .then((data) => {
         setProducts(data || []);
@@ -1299,12 +1307,12 @@ export default function App() {
   });
 
   // Cart functions
-  const addToCart = (product, size, color) => {
+  const addToCart = (product, size, color, quantity = 1) => {
     const key = `${product._id}-${size}-${color}`;
     setCart((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
-        return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + 1 } : i));
+        return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + quantity } : i));
       }
       return [...prev, {
         key,
@@ -1314,7 +1322,7 @@ export default function App() {
         size,
         color,
         image: product.image,
-        qty: 1,
+        qty: quantity,
       }];
     });
     setToast(`${product.name} added to cart`);
@@ -1524,6 +1532,7 @@ export default function App() {
                   setSelectedSize(product.sizes?.[0] || '');
                   setSelectedColor(product.colors?.[0] || '');
                   setGalleryIdx(0);
+                  setModalQty(1);
                 }}
                 style={{ animationDelay: `${idx * 0.05}s` }}
               >
@@ -1681,11 +1690,9 @@ export default function App() {
             <div className="modal-image" style={{ position: 'relative' }}>
               {(() => {
                 const allImages = [];
-                if (selectedProduct.image) allImages.push({ src: selectedProduct.image, label: 'Main' });
+                if (selectedProduct.image) allImages.push(selectedProduct.image);
                 if (selectedProduct.gallery?.length) {
-                  selectedProduct.gallery.forEach((g) => {
-                    if (g.asset || g) allImages.push({ src: g, label: g.label || '' });
-                  });
+                  selectedProduct.gallery.forEach((g) => { if (g) allImages.push(g); });
                 }
                 if (allImages.length === 0) {
                   return (
@@ -1697,28 +1704,20 @@ export default function App() {
                 const current = allImages[galleryIdx] || allImages[0];
                 return (
                   <>
-                    <img src={urlFor(current.src).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
+                    <img src={urlFor(current).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
                     {allImages.length > 1 && (
-                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', right: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        {allImages.map((img, i) => (
-                          <button
-                            key={i}
-                            onClick={(e) => { e.stopPropagation(); setGalleryIdx(i); }}
-                            style={{
-                              width: '56px', height: '56px', padding: 0, border: i === galleryIdx ? '2px solid var(--gold)' : '2px solid transparent',
-                              background: 'var(--bg-card)', cursor: 'pointer', overflow: 'hidden', opacity: i === galleryIdx ? 1 : 0.6,
-                              transition: 'all 0.2s',
-                            }}
-                          >
-                            <img src={urlFor(img.src).width(112).height(112).fit('crop').url()} alt={img.label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {current.label && (
-                      <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', color: 'var(--text-primary)', padding: '4px 10px', fontFamily: "'Oswald', sans-serif", fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                        {current.label}
-                      </div>
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); setGalleryIdx((galleryIdx - 1 + allImages.length) % allImages.length); }}
+                          style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', width: '36px', height: '36px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+                        <button onClick={(e) => { e.stopPropagation(); setGalleryIdx((galleryIdx + 1) % allImages.length); }}
+                          style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', width: '36px', height: '36px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+                        <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
+                          {allImages.map((_, i) => (
+                            <button key={i} onClick={(e) => { e.stopPropagation(); setGalleryIdx(i); }}
+                              style={{ width: i === galleryIdx ? '20px' : '8px', height: '8px', borderRadius: '4px', border: 'none', background: i === galleryIdx ? 'var(--gold)' : 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 0, transition: 'all 0.2s' }} />
+                          ))}
+                        </div>
+                      </>
                     )}
                   </>
                 );
@@ -1755,8 +1754,16 @@ export default function App() {
                   </div>
                 </div>
               )}
-              <button className="add-cart-btn" onClick={() => addToCart(selectedProduct, selectedSize, selectedColor)}>
-                Add to Cart
+              <div className="option-group">
+                <label>Quantity</label>
+                <div className="cart-qty" style={{ justifyContent: 'flex-start' }}>
+                  <button onClick={() => setModalQty(Math.max(1, modalQty - 1))}>-</button>
+                  <span>{modalQty}</span>
+                  <button onClick={() => setModalQty(modalQty + 1)}>+</button>
+                </div>
+              </div>
+              <button className="add-cart-btn" onClick={() => addToCart(selectedProduct, selectedSize, selectedColor, modalQty)}>
+                Add to Cart{modalQty > 1 ? ` (${modalQty})` : ''}
               </button>
             </div>
           </div>
