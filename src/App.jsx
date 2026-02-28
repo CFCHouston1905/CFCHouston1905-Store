@@ -1259,6 +1259,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [galleryIdx, setGalleryIdx] = useState(0);
   const [toast, setToast] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -1273,7 +1274,7 @@ export default function App() {
   useEffect(() => {
     sanityClient
       .fetch(`*[_type == "product"] | order(_createdAt desc) {
-        _id, name, price, category, description, image, sizes, colors, featured
+        _id, name, price, category, description, image, gallery[]{ asset->{_id, url}, label }, sizes, colors, featured
       }`)
       .then((data) => {
         setProducts(data || []);
@@ -1522,6 +1523,7 @@ export default function App() {
                   setSelectedProduct(product);
                   setSelectedSize(product.sizes?.[0] || '');
                   setSelectedColor(product.colors?.[0] || '');
+                  setGalleryIdx(0);
                 }}
                 style={{ animationDelay: `${idx * 0.05}s` }}
               >
@@ -1676,14 +1678,51 @@ export default function App() {
         <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setSelectedProduct(null)}>✕</button>
-            <div className="modal-image">
-              {selectedProduct.image ? (
-                <img src={urlFor(selectedProduct.image).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
-                  <img src="/images/logo-circle.png" alt="" style={{ width: '80px', opacity: 0.15 }} />
-                </div>
-              )}
+            <div className="modal-image" style={{ position: 'relative' }}>
+              {(() => {
+                const allImages = [];
+                if (selectedProduct.image) allImages.push({ src: selectedProduct.image, label: 'Main' });
+                if (selectedProduct.gallery?.length) {
+                  selectedProduct.gallery.forEach((g) => {
+                    if (g.asset || g) allImages.push({ src: g, label: g.label || '' });
+                  });
+                }
+                if (allImages.length === 0) {
+                  return (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
+                      <img src="/images/logo-circle.png" alt="" style={{ width: '80px', opacity: 0.15 }} />
+                    </div>
+                  );
+                }
+                const current = allImages[galleryIdx] || allImages[0];
+                return (
+                  <>
+                    <img src={urlFor(current.src).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
+                    {allImages.length > 1 && (
+                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', right: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        {allImages.map((img, i) => (
+                          <button
+                            key={i}
+                            onClick={(e) => { e.stopPropagation(); setGalleryIdx(i); }}
+                            style={{
+                              width: '56px', height: '56px', padding: 0, border: i === galleryIdx ? '2px solid var(--gold)' : '2px solid transparent',
+                              background: 'var(--bg-card)', cursor: 'pointer', overflow: 'hidden', opacity: i === galleryIdx ? 1 : 0.6,
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            <img src={urlFor(img.src).width(112).height(112).fit('crop').url()} alt={img.label || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {current.label && (
+                      <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', color: 'var(--text-primary)', padding: '4px 10px', fontFamily: "'Oswald', sans-serif", fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                        {current.label}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="modal-details">
               <div className="modal-cat">{selectedProduct.category || 'Merch'}</div>
