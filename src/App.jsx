@@ -14,11 +14,11 @@ const urlFor = (source) => builder.image(source);
 
 // ─── Fixtures Data ───
 const FIXTURES = [
-  { home: 'Arsenal', away: 'Chelsea', date: 'Sun, Mar 1', time: '11:30 AM', comp: 'Premier League' },
-  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '2:30 PM', comp: 'Premier League' },
-  { home: 'Wrexham', away: 'Chelsea', date: 'Sat, Mar 7', time: '12:45 PM', comp: 'FA Cup' },
-  { home: 'Chelsea', away: 'Newcastle', date: 'Fri, Mar 14', time: '1:30 PM', comp: 'Premier League' },
-  { home: 'Everton', away: 'Chelsea', date: 'Fri, Mar 21', time: '1:30 PM', comp: 'Premier League' },
+  { home: 'Arsenal', away: 'Chelsea', date: 'Sun, Mar 1', time: '10:30 AM CT', comp: 'Premier League' },
+  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '1:30 PM CT', comp: 'Premier League' },
+  { home: 'Wrexham', away: 'Chelsea', date: 'Sat, Mar 7', time: '11:45 AM CT', comp: 'FA Cup' },
+  { home: 'Chelsea', away: 'Newcastle', date: 'Fri, Mar 14', time: '12:30 PM CT', comp: 'Premier League' },
+  { home: 'Everton', away: 'Chelsea', date: 'Fri, Mar 21', time: '12:30 PM CT', comp: 'Premier League' },
   { home: 'Chelsea', away: 'Man City', date: 'Fri, Apr 11', time: 'TBD', comp: 'Premier League' },
   { home: 'Chelsea', away: 'Man United', date: 'Fri, Apr 18', time: 'TBD', comp: 'Premier League' },
   { home: 'Brighton', away: 'Chelsea', date: 'Fri, Apr 25', time: 'TBD', comp: 'Premier League' },
