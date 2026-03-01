@@ -427,11 +427,15 @@ header {
   aspect-ratio: 4/3;
   background: var(--bg-elevated);
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .product-img-wrap img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 8px;
   transition: transform 0.5s;
 }
 .product-card:hover .product-img-wrap img {
@@ -536,11 +540,15 @@ header {
   aspect-ratio: 1;
   background: var(--bg-elevated);
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .modal-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 12px;
 }
 .modal-details {
   padding: 36px;
@@ -1542,7 +1550,7 @@ export default function App() {
               >
                 <div className="product-img-wrap">
                   {product.image ? (
-                    <img src={urlFor(product.image).width(600).height(450).fit('crop').url()} alt={product.name} />
+                    <img src={urlFor(product.image).width(600).fit('max').auto('format').url()} alt={product.name} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <img src="/images/logo-circle.png" alt="" style={{ width: '60px', opacity: 0.15 }} />
@@ -1709,7 +1717,7 @@ export default function App() {
                 const current = allImages[galleryIdx] || allImages[0];
                 return (
                   <>
-                    <img src={urlFor(current).width(800).height(800).fit('crop').url()} alt={selectedProduct.name} />
+                    <img src={urlFor(current).width(800).fit('max').auto('format').url()} alt={selectedProduct.name} />
                     {allImages.length > 1 && (
                       <>
                         <button onClick={(e) => { e.stopPropagation(); setGalleryIdx((galleryIdx - 1 + allImages.length) % allImages.length); }}
