@@ -734,14 +734,12 @@ header {
   width: 100%;
   max-width: 350px;
   margin: 0 auto;
-  position: relative;
 }
 .about-shield img {
   width: 100%;
   height: auto;
   object-fit: contain;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 40px rgba(3,70,148,0.4)) brightness(0.85);
+  filter: drop-shadow(0 0 40px rgba(3,70,148,0.4));
 }
 .about-text h3 {
   font-family: 'Oswald', sans-serif;
@@ -1615,7 +1613,7 @@ export default function App() {
       <section className="section" id="about">
         <div className="about-grid">
           <div className="about-shield">
-            <img src="/images/logo-shield.jpeg" alt="Bayou City Blues Crest" />
+            <img src="/images/BCB_Logo_Blue.png" alt="Bayou City Blues Crest" />
           </div>
           <div className="about-text">
             <div className="section-label">Our Story</div>
