@@ -1254,10 +1254,10 @@ footer {
 const CATEGORY_MAP = {
   all: 'All Products',
   apparel: 'Apparel',
-  'hats-scarves': 'Hats & Scarves',
+  hats: 'Hats',
   drinkware: 'Drinkware',
-  'stickers-more': 'Stickers & More',
-  'banners-flags': 'Banners & Flags',
+  accessories: 'Accessories',
+  flags: 'Flags',
 };
 
 // ─── Main App ───
@@ -1662,10 +1662,10 @@ export default function App() {
             <div className="footer-col">
               <h5>Shop</h5>
               <a onClick={() => { setFilter('apparel'); scrollTo('shop'); }}>Apparel</a>
-              <a onClick={() => { setFilter('hats-scarves'); scrollTo('shop'); }}>Hats & Scarves</a>
+              <a onClick={() => { setFilter('hats'); scrollTo('shop'); }}>Hats</a>
               <a onClick={() => { setFilter('drinkware'); scrollTo('shop'); }}>Drinkware</a>
-              <a onClick={() => { setFilter('stickers-more'); scrollTo('shop'); }}>Stickers & More</a>
-              <a onClick={() => { setFilter('banners-flags'); scrollTo('shop'); }}>Banners & Flags</a>
+              <a onClick={() => { setFilter('accessories'); scrollTo('shop'); }}>Accessories</a>
+              <a onClick={() => { setFilter('flags'); scrollTo('shop'); }}>Flags</a>
             </div>
             <div className="footer-col">
               <h5>Club</h5>
