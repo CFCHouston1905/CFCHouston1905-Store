@@ -727,17 +727,13 @@ header {
   max-width: 350px;
   margin: 0 auto;
   position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--chelsea-blue-dark) 50%, var(--bg-primary) 100%);
-  padding: 24px;
 }
 .about-shield img {
   width: 100%;
   height: auto;
   object-fit: contain;
-  mix-blend-mode: lighten;
-  filter: drop-shadow(0 0 40px rgba(3,70,148,0.4));
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 40px rgba(3,70,148,0.4)) brightness(0.85);
 }
 .about-text h3 {
   font-family: 'Oswald', sans-serif;
@@ -1615,10 +1611,11 @@ export default function App() {
           </div>
           <div className="about-text">
             <div className="section-label">Our Story</div>
-            <h3>Bayou City Blues</h3>
+            <h3>Chelsea Houston 1905</h3>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '14px', color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: '-12px', marginBottom: '20px' }}>Bayou City Blues</div>
             <div className="section-divider" />
             <p>
-              Founded in 2011, the Bayou City Blues are Houston's official Chelsea FC supporters group.
+              Founded in 2011, Chelsea Houston 1905 / Bayou City Blues are Houston's official Chelsea FC supporters group.
               What started as a handful of Blues gathering at a local pub has grown into one of the
               largest and most passionate Chelsea communities in the United States.
             </p>
