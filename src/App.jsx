@@ -1740,7 +1740,7 @@ export default function App() {
               <div className="modal-name">{selectedProduct.name}</div>
               <div className="modal-price">${selectedProduct.price?.toFixed(2)}</div>
               {selectedProduct.description && (
-                <div className="modal-desc">{selectedProduct.description}</div>
+                <div className="modal-desc" style={{ whiteSpace: 'pre-line' }}>{selectedProduct.description}</div>
               )}
               {selectedProduct.sizes?.length > 0 && (
                 <div className="option-group">
