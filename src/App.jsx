@@ -15,15 +15,17 @@ const urlFor = (source) => builder.image(source);
 // ─── Fixtures Data ───
 const FIXTURES = [
   { home: 'Arsenal', away: 'Chelsea', date: 'Sun, Mar 1', time: '10:30 AM CT', comp: 'Premier League' },
-  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '1:30 PM CT', comp: 'Premier League' },
+  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '2:00 PM CT', comp: 'Premier League' },
   { home: 'Wrexham', away: 'Chelsea', date: 'Sat, Mar 7', time: '11:45 AM CT', comp: 'FA Cup' },
-  { home: 'Chelsea', away: 'Newcastle', date: 'Fri, Mar 14', time: '12:30 PM CT', comp: 'Premier League' },
-  { home: 'Everton', away: 'Chelsea', date: 'Fri, Mar 21', time: '12:30 PM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Man City', date: 'Fri, Apr 11', time: 'TBD', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Man United', date: 'Fri, Apr 18', time: 'TBD', comp: 'Premier League' },
-  { home: 'Brighton', away: 'Chelsea', date: 'Fri, Apr 25', time: 'TBD', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Nottm Forest', date: 'Sat, May 2', time: 'TBD', comp: 'Premier League' },
-  { home: 'Liverpool', away: 'Chelsea', date: 'Sat, May 9', time: 'TBD', comp: 'Premier League' },
+  { home: 'PSG', away: 'Chelsea', date: 'Wed, Mar 11', time: '12:00 PM CT', comp: 'Champions League' },
+  { home: 'Chelsea', away: 'Newcastle', date: 'Sat, Mar 14', time: '10:00 AM CT', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'PSG', date: 'Tue, Mar 17', time: '3:00 PM CT', comp: 'Champions League' },
+  { home: 'Everton', away: 'Chelsea', date: 'Sat, Mar 21', time: '10:00 AM CT', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Man City', date: 'Sat, Apr 11', time: '9:00 AM CT', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Man United', date: 'Sat, Apr 18', time: '9:00 AM CT', comp: 'Premier League' },
+  { home: 'Brighton', away: 'Chelsea', date: 'Sat, Apr 25', time: '9:00 AM CT', comp: 'Premier League' },
+  { home: 'Chelsea', away: 'Nottm Forest', date: 'Sat, May 2', time: '9:00 AM CT', comp: 'Premier League' },
+  { home: 'Liverpool', away: 'Chelsea', date: 'Sat, May 9', time: '9:00 AM CT', comp: 'Premier League' },
   { home: 'Chelsea', away: 'Tottenham', date: 'Sat, May 17', time: 'TBD', comp: 'Premier League' },
   { home: 'Sunderland', away: 'Chelsea', date: 'Sat, May 24', time: 'TBD', comp: 'Premier League' },
 ];
@@ -724,12 +726,18 @@ header {
   width: 100%;
   max-width: 350px;
   margin: 0 auto;
-  filter: drop-shadow(0 0 60px rgba(3,70,148,0.3));
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--chelsea-blue-dark) 50%, var(--bg-primary) 100%);
+  padding: 24px;
 }
 .about-shield img {
   width: 100%;
   height: auto;
   object-fit: contain;
+  mix-blend-mode: lighten;
+  filter: drop-shadow(0 0 40px rgba(3,70,148,0.4));
 }
 .about-text h3 {
   font-family: 'Oswald', sans-serif;
