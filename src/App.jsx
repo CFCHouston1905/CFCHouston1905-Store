@@ -739,8 +739,7 @@ header {
   width: 100%;
   height: auto;
   object-fit: contain;
-  opacity: 0.08;
-  filter: brightness(0) invert(1);
+  filter: drop-shadow(0 0 30px rgba(3,70,148,0.3));
 }
 .about-text h3 {
   font-family: 'Oswald', sans-serif;
