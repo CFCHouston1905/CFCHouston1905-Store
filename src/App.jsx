@@ -12,23 +12,44 @@ const sanityClient = createClient({
 const builder = imageUrlBuilder(sanityClient);
 const urlFor = (source) => builder.image(source);
 
-// ─── Fixtures Data ───
-const FIXTURES = [
-  { home: 'Arsenal', away: 'Chelsea', date: 'Sun, Mar 1', time: '10:30 AM CT', comp: 'Premier League' },
-  { home: 'Aston Villa', away: 'Chelsea', date: 'Wed, Mar 4', time: '2:00 PM CT', comp: 'Premier League' },
-  { home: 'Wrexham', away: 'Chelsea', date: 'Sat, Mar 7', time: '11:45 AM CT', comp: 'FA Cup' },
-  { home: 'PSG', away: 'Chelsea', date: 'Wed, Mar 11', time: '12:00 PM CT', comp: 'Champions League' },
-  { home: 'Chelsea', away: 'Newcastle', date: 'Sat, Mar 14', time: '10:00 AM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'PSG', date: 'Tue, Mar 17', time: '3:00 PM CT', comp: 'Champions League' },
-  { home: 'Everton', away: 'Chelsea', date: 'Sat, Mar 21', time: '10:00 AM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Man City', date: 'Sat, Apr 11', time: '9:00 AM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Man United', date: 'Sat, Apr 18', time: '9:00 AM CT', comp: 'Premier League' },
-  { home: 'Brighton', away: 'Chelsea', date: 'Sat, Apr 25', time: '9:00 AM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Nottm Forest', date: 'Sat, May 2', time: '9:00 AM CT', comp: 'Premier League' },
-  { home: 'Liverpool', away: 'Chelsea', date: 'Sat, May 9', time: '9:00 AM CT', comp: 'Premier League' },
-  { home: 'Chelsea', away: 'Tottenham', date: 'Sat, May 17', time: 'TBD', comp: 'Premier League' },
-  { home: 'Sunderland', away: 'Chelsea', date: 'Sat, May 24', time: 'TBD', comp: 'Premier League' },
-];
+// ─── Fixtures Date Formatting (America/Chicago, DST-aware) ───
+const CHICAGO_TZ = 'America/Chicago';
+
+const getChicagoZoneLabel = (date) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: CHICAGO_TZ,
+      timeZoneName: 'short',
+    }).formatToParts(date);
+    const tz = parts.find((p) => p.type === 'timeZoneName');
+    return tz ? tz.value : 'CT';
+  } catch {
+    return 'CT';
+  }
+};
+
+const formatFixtureDate = (utcDate) => {
+  const d = new Date(utcDate);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', {
+    timeZone: CHICAGO_TZ,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const formatFixtureTime = (utcDate) => {
+  const d = new Date(utcDate);
+  if (Number.isNaN(d.getTime())) return 'TBD';
+  const time = d.toLocaleTimeString('en-US', {
+    timeZone: CHICAGO_TZ,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${time} ${getChicagoZoneLabel(d)}`;
+};
 
 // ─── Styles ───
 const CSS = `
@@ -1282,6 +1303,9 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [fixtures, setFixtures] = useState([]);
+  const [fixturesLoading, setFixturesLoading] = useState(true);
+  const [fixturesError, setFixturesError] = useState(null);
   const chatEndRef = useRef(null);
 
   // Save cart to localStorage
@@ -1301,6 +1325,39 @@ export default function App() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  // Fetch fixtures from Netlify function
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/.netlify/functions/fixtures')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data.matches) ? data.matches : [];
+        // Filter past matches with 2-hour grace window, sort ascending by kickoff
+        const graceMs = 2 * 60 * 60 * 1000;
+        const cutoff = Date.now() - graceMs;
+        const upcoming = list
+          .filter((m) => {
+            const t = new Date(m.utcDate).getTime();
+            return Number.isFinite(t) && t >= cutoff;
+          })
+          .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+        setFixtures(upcoming);
+        setFixturesLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setFixturesError(err.message || 'Failed to load fixtures');
+        setFixturesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const nextMatch = fixtures[0];
 
   // Filtered products
   const filtered = filter === 'all'
@@ -1420,7 +1477,11 @@ export default function App() {
           {[...Array(3)].map((_, i) => (
             <span key={i}>
               Free shipping on orders over $75 &nbsp;&nbsp; ★ &nbsp;&nbsp;
-              <span className="gold-text">Next Match: Arsenal vs Chelsea | Sun, Mar 1 | 11:30 AM CT</span>
+              <span className="gold-text">
+                {nextMatch
+                  ? `Next Match: ${nextMatch.home} vs ${nextMatch.away} | ${formatFixtureDate(nextMatch.utcDate)} | ${formatFixtureTime(nextMatch.utcDate)}`
+                  : 'Next Match: TBD'}
+              </span>
               &nbsp;&nbsp; ★ &nbsp;&nbsp;
               Watch Parties at Little Woodrow's EaDo &nbsp;&nbsp; ★ &nbsp;&nbsp;
               <span className="gold-text">Carefree in the 713 Since 2011</span>
@@ -1591,21 +1652,29 @@ export default function App() {
               </div>
             </div>
 
-            <div className="fixture-grid">
-              {FIXTURES.map((f, i) => (
-                <div key={i} className="fixture-card">
-                  <div className="fixture-teams">
-                    <span className={`fixture-team ${f.home === 'Chelsea' ? 'chelsea' : ''}`}>{f.home}</span>
-                    <span className={`fixture-team ${f.away === 'Chelsea' ? 'chelsea' : ''}`}>{f.away}</span>
+            {fixturesLoading ? (
+              <div className="no-products"><p>Loading fixtures...</p></div>
+            ) : fixturesError ? (
+              <div className="no-products"><p>Unable to load fixtures right now. Check back soon.</p></div>
+            ) : fixtures.length === 0 ? (
+              <div className="no-products"><p>No upcoming fixtures scheduled. Check back soon.</p></div>
+            ) : (
+              <div className="fixture-grid">
+                {fixtures.map((f) => (
+                  <div key={f.id} className="fixture-card">
+                    <div className="fixture-teams">
+                      <span className={`fixture-team ${f.home === 'Chelsea' ? 'chelsea' : ''}`}>{f.home}</span>
+                      <span className={`fixture-team ${f.away === 'Chelsea' ? 'chelsea' : ''}`}>{f.away}</span>
+                    </div>
+                    <div className="fixture-meta">
+                      <div className="fixture-date">{formatFixtureDate(f.utcDate)}</div>
+                      <div className="fixture-time">{formatFixtureTime(f.utcDate)}</div>
+                      <div className="fixture-comp">{f.comp}</div>
+                    </div>
                   </div>
-                  <div className="fixture-meta">
-                    <div className="fixture-date">{f.date}</div>
-                    <div className="fixture-time">{f.time}</div>
-                    <div className="fixture-comp">{f.comp}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
