@@ -19,16 +19,24 @@ exports.handler = async (event) => {
 
     const { items } = body;
 
-    const lineItems = items.map(item => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.name,
+    const lineItems = items.map(item => {
+      const metadata = {};
+      if (item.id) metadata.sanityProductId = String(item.id);
+      if (item.size) metadata.size = String(item.size);
+      if (item.color) metadata.color = String(item.color);
+
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.name,
+            ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+          },
+          unit_amount: Math.round(item.price * 100),
         },
-        unit_amount: Math.round(item.price * 100),
-      },
-      quantity: item.quantity || item.qty || 1,
-    }));
+        quantity: item.quantity || item.qty || 1,
+      };
+    });
 
     // Add shipping if under $75
     const subtotal = items.reduce((sum, i) => sum + i.price * (i.quantity || i.qty || 1), 0);

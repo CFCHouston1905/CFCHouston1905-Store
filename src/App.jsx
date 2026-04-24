@@ -1419,9 +1419,12 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map((i) => ({
+            id: i.id,
             name: `${i.name}${i.size ? ` - ${i.size}` : ''}${i.color ? ` - ${i.color}` : ''}`,
             price: i.price,
             quantity: i.qty,
+            size: i.size,
+            color: i.color,
           })),
         }),
       });
