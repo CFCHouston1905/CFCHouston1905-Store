@@ -185,8 +185,7 @@ header {
 /* ─── Hero ─── */
 .hero {
   position: relative;
-  min-height: auto;
-  padding: 80px 0 60px;
+  min-height: 85vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1232,7 +1231,7 @@ footer {
     cursor: pointer;
   }
   .section { padding: 50px 20px; }
-  .hero { min-height: auto; }
+  .hero { min-height: 70vh; }
   .hero-crest { width: 120px; height: 120px; }
   .footer-grid { grid-template-columns: 1fr; }
   .fixture-grid { grid-template-columns: 1fr; }
@@ -1590,7 +1589,7 @@ export default function App() {
       )}
 
       {/* Hero */}
-      <section className="hero" id="raffle">
+      <section className="hero">
         <div className="hero-noise" />
         <div className="hero-gradient-orb hero-orb-1" />
         <div className="hero-gradient-orb hero-orb-2" />
@@ -1609,14 +1608,24 @@ export default function App() {
           <p className="hero-desc">
             Wembley Stadium. Saturday, May 17. Join us at Little Woodrow's EaDo for the watch party. KTBFFH.
           </p>
-          <div className="hero-btns" style={{ marginBottom: '40px' }}>
+          <div className="hero-btns">
+            <button className="btn-primary" onClick={() => scrollTo('raffle')}>Get Raffle Tickets</button>
             <button className="btn-outline" onClick={() => scrollTo('shop')}>Shop Merch</button>
-            <button className="btn-outline" onClick={() => scrollTo('fixtures')}>Watch Parties</button>
           </div>
-          <div style={{ borderTop: '1px solid rgba(200,169,81,0.3)', paddingTop: '32px', width: '100%', maxWidth: '560px', margin: '0 auto' }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '16px' }}>Watch Party Raffle</div>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>
-              Grab your raffle tickets for the watch party. Winners drawn during the match. Must be present to win.
+        </div>
+        <div className="hero-divider" />
+      </section>
+
+      {/* Raffle Section */}
+      <section className="raffle-section" id="raffle">
+        <div className="section">
+          <div className="raffle-inner">
+            <div className="raffle-badge">Watch Party Raffle</div>
+            <h2 className="raffle-title">FA Cup Final Raffle</h2>
+            <div className="raffle-match">Chelsea vs Man City | Sat, May 17 | 9:00 AM CT</div>
+            <p className="raffle-desc">
+              Grab your raffle tickets for the FA Cup Final watch party at Little Woodrow's EaDo.
+              Winners drawn during the match. You must be present to win.
             </p>
             <div className="raffle-options">
               <div className="raffle-card">
@@ -1634,7 +1643,6 @@ export default function App() {
             </div>
           </div>
         </div>
-        <div className="hero-divider" />
       </section>
 
       {/* Shop Section */}
