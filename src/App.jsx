@@ -12,44 +12,12 @@ const sanityClient = createClient({
 const builder = imageUrlBuilder(sanityClient);
 const urlFor = (source) => builder.image(source);
 
-// ─── Fixtures Date Formatting (America/Chicago, DST-aware) ───
-const CHICAGO_TZ = 'America/Chicago';
-
-const getChicagoZoneLabel = (date) => {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: CHICAGO_TZ,
-      timeZoneName: 'short',
-    }).formatToParts(date);
-    const tz = parts.find((p) => p.type === 'timeZoneName');
-    return tz ? tz.value : 'CT';
-  } catch {
-    return 'CT';
-  }
-};
-
-const formatFixtureDate = (utcDate) => {
-  const d = new Date(utcDate);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', {
-    timeZone: CHICAGO_TZ,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const formatFixtureTime = (utcDate) => {
-  const d = new Date(utcDate);
-  if (Number.isNaN(d.getTime())) return 'TBD';
-  const time = d.toLocaleTimeString('en-US', {
-    timeZone: CHICAGO_TZ,
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${time} ${getChicagoZoneLabel(d)}`;
-};
+// ─── Fixtures Data ───
+const FIXTURES = [
+  { home: 'Chelsea', away: 'Man City', date: 'Sat, May 17', time: '9:00 AM CT', comp: 'FA Cup Final' },
+  { home: 'Chelsea', away: 'Tottenham', date: 'Tue, May 19', time: '1:15 PM CT', comp: 'Premier League' },
+  { home: 'Sunderland', away: 'Chelsea', date: 'Sun, May 24', time: 'TBD', comp: 'Premier League' },
+];
 
 // ─── Styles ───
 const CSS = `
@@ -1269,15 +1237,127 @@ footer {
   .fixture-grid { grid-template-columns: 1fr; }
   .fixture-venue-card { flex-direction: column; text-align: center; }
 }
+
+/* ─── Raffle Section ─── */
+.raffle-section {
+  background: linear-gradient(135deg, #022b5a 0%, #034694 50%, #022b5a 100%);
+  border-top: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  position: relative;
+  overflow: hidden;
+}
+.raffle-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+.raffle-inner {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.raffle-badge {
+  display: inline-block;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  margin-bottom: 20px;
+}
+.raffle-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+.raffle-match {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.raffle-desc {
+  font-size: 16px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+.raffle-options {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.raffle-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,169,81,0.3);
+  padding: 28px 36px;
+  text-align: center;
+  min-width: 220px;
+  transition: all 0.3s;
+}
+.raffle-card:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--gold);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.raffle-qty {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.raffle-price {
+  font-family: 'Oswald', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.raffle-per {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.raffle-buy {
+  width: 100%;
+  padding: 12px 24px;
+  background: var(--gold);
+  color: var(--bg-primary);
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.raffle-buy:hover {
+  background: var(--gold-light);
+  box-shadow: 0 6px 20px rgba(200,169,81,0.3);
+}
 `;
 
 // ─── Category map ───
 const CATEGORY_MAP = {
   all: 'All Products',
   apparel: 'Apparel',
-  hats: 'Hats',
-  drinkware: 'Drinkware',
-  accessories: 'Accessories',
   flags: 'Flags',
 };
 
@@ -1303,9 +1383,6 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
-  const [fixtures, setFixtures] = useState([]);
-  const [fixturesLoading, setFixturesLoading] = useState(true);
-  const [fixturesError, setFixturesError] = useState(null);
   const chatEndRef = useRef(null);
 
   // Save cart to localStorage
@@ -1325,39 +1402,6 @@ export default function App() {
       })
       .catch(() => setLoading(false));
   }, []);
-
-  // Fetch fixtures from Netlify function
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/.netlify/functions/fixtures')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data.matches) ? data.matches : [];
-        // Filter past matches with 2-hour grace window, sort ascending by kickoff
-        const graceMs = 2 * 60 * 60 * 1000;
-        const cutoff = Date.now() - graceMs;
-        const upcoming = list
-          .filter((m) => {
-            const t = new Date(m.utcDate).getTime();
-            return Number.isFinite(t) && t >= cutoff;
-          })
-          .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
-        setFixtures(upcoming);
-        setFixturesLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setFixturesError(err.message || 'Failed to load fixtures');
-        setFixturesLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  const nextMatch = fixtures[0];
 
   // Filtered products
   const filtered = filter === 'all'
@@ -1419,12 +1463,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map((i) => ({
-            id: i.id,
             name: `${i.name}${i.size ? ` - ${i.size}` : ''}${i.color ? ` - ${i.color}` : ''}`,
             price: i.price,
             quantity: i.qty,
-            size: i.size,
-            color: i.color,
           })),
         }),
       });
@@ -1432,6 +1473,28 @@ export default function App() {
       if (data.url) window.location.href = data.url;
     } catch (e) {
       setToast('Checkout not available yet. Set up Stripe to enable.');
+      setTimeout(() => setToast(''), 3000);
+    }
+  };
+
+  // Raffle checkout
+  const handleRaffle = async (qty, price) => {
+    try {
+      const res = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{
+            name: `FA Cup Final Raffle Ticket${qty > 1 ? ` (${qty}-pack)` : ''}`,
+            price: price / qty,
+            quantity: qty,
+          }],
+        }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setToast('Checkout not available yet.');
       setTimeout(() => setToast(''), 3000);
     }
   };
@@ -1479,13 +1542,9 @@ export default function App() {
         <div className="announce-track">
           {[...Array(3)].map((_, i) => (
             <span key={i}>
-              Free shipping on orders over $75 &nbsp;&nbsp; ★ &nbsp;&nbsp;
-              <span className="gold-text">
-                {nextMatch
-                  ? `Next Match: ${nextMatch.home} vs ${nextMatch.away} | ${formatFixtureDate(nextMatch.utcDate)} | ${formatFixtureTime(nextMatch.utcDate)}`
-                  : 'Next Match: TBD'}
-              </span>
+              <span className="gold-text">FA CUP FINAL: Chelsea vs Man City | Sat, May 17 | 9:00 AM CT</span>
               &nbsp;&nbsp; ★ &nbsp;&nbsp;
+              Raffle Tickets Available &nbsp;&nbsp; ★ &nbsp;&nbsp;
               Watch Parties at Little Woodrow's EaDo &nbsp;&nbsp; ★ &nbsp;&nbsp;
               <span className="gold-text">Carefree in the 713 Since 2011</span>
               &nbsp;&nbsp; ★ &nbsp;&nbsp;
@@ -1505,6 +1564,7 @@ export default function App() {
         </div>
 
         <div className="header-nav">
+          <a onClick={() => scrollTo('raffle')}>Raffle</a>
           <a onClick={() => scrollTo('shop')}>Shop</a>
           <a onClick={() => scrollTo('fixtures')}>Fixtures</a>
           <a onClick={() => scrollTo('about')}>About</a>
@@ -1520,6 +1580,7 @@ export default function App() {
       {mobileNav && (
         <div className="mobile-nav-overlay">
           <button className="mobile-nav-close" onClick={() => setMobileNav(false)}>✕</button>
+          <a onClick={() => scrollTo('raffle')}>Raffle</a>
           <a onClick={() => scrollTo('shop')}>Shop</a>
           <a onClick={() => scrollTo('fixtures')}>Fixtures</a>
           <a onClick={() => scrollTo('about')}>About</a>
@@ -1539,20 +1600,49 @@ export default function App() {
           <div className="hero-crest">
             <img src="/images/logo-circle.png" alt="Chelsea Houston 1905" />
           </div>
-          <div className="hero-tagline">Carefree in the 713 since 2011</div>
+          <div className="hero-tagline">FA Cup Final 2026</div>
           <h1 className="hero-title">
-            <span className="outline">Official</span><br />
-            Supporters <span className="gold">Merch</span>
+            <span className="outline">Chelsea</span><br />
+            <span className="gold">vs Man City</span>
           </h1>
           <p className="hero-desc">
-            Gear up for matchday. Rep the badge from Houston to London. Always Blue.
+            Wembley Stadium. Saturday, May 17. Join us at Little Woodrow's EaDo for the watch party. KTBFFH.
           </p>
           <div className="hero-btns">
-            <button className="btn-primary" onClick={() => scrollTo('shop')}>Shop Collection</button>
-            <button className="btn-outline" onClick={() => scrollTo('fixtures')}>Watch Parties</button>
+            <button className="btn-primary" onClick={() => scrollTo('raffle')}>Get Raffle Tickets</button>
+            <button className="btn-outline" onClick={() => scrollTo('shop')}>Shop Merch</button>
           </div>
         </div>
         <div className="hero-divider" />
+      </section>
+
+      {/* Raffle Section */}
+      <section className="raffle-section" id="raffle">
+        <div className="section">
+          <div className="raffle-inner">
+            <div className="raffle-badge">Watch Party Raffle</div>
+            <h2 className="raffle-title">FA Cup Final Raffle</h2>
+            <div className="raffle-match">Chelsea vs Man City | Sat, May 17 | 9:00 AM CT</div>
+            <p className="raffle-desc">
+              Grab your raffle tickets for the FA Cup Final watch party at Little Woodrow's EaDo.
+              Winners drawn during the match. You must be present to win.
+            </p>
+            <div className="raffle-options">
+              <div className="raffle-card">
+                <div className="raffle-qty">1 Ticket</div>
+                <div className="raffle-price">$10</div>
+                <div className="raffle-per">$10 per ticket</div>
+                <button className="raffle-buy" onClick={() => handleRaffle(1, 10)}>Buy Now</button>
+              </div>
+              <div className="raffle-card">
+                <div className="raffle-qty">5 Tickets</div>
+                <div className="raffle-price">$40</div>
+                <div className="raffle-per">$8 per ticket</div>
+                <button className="raffle-buy" onClick={() => handleRaffle(5, 40)}>Buy Now</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Shop Section */}
@@ -1655,29 +1745,21 @@ export default function App() {
               </div>
             </div>
 
-            {fixturesLoading ? (
-              <div className="no-products"><p>Loading fixtures...</p></div>
-            ) : fixturesError ? (
-              <div className="no-products"><p>Unable to load fixtures right now. Check back soon.</p></div>
-            ) : fixtures.length === 0 ? (
-              <div className="no-products"><p>No upcoming fixtures scheduled. Check back soon.</p></div>
-            ) : (
-              <div className="fixture-grid">
-                {fixtures.map((f) => (
-                  <div key={f.id} className="fixture-card">
-                    <div className="fixture-teams">
-                      <span className={`fixture-team ${f.home === 'Chelsea' ? 'chelsea' : ''}`}>{f.home}</span>
-                      <span className={`fixture-team ${f.away === 'Chelsea' ? 'chelsea' : ''}`}>{f.away}</span>
-                    </div>
-                    <div className="fixture-meta">
-                      <div className="fixture-date">{formatFixtureDate(f.utcDate)}</div>
-                      <div className="fixture-time">{formatFixtureTime(f.utcDate)}</div>
-                      <div className="fixture-comp">{f.comp}</div>
-                    </div>
+            <div className="fixture-grid">
+              {FIXTURES.map((f, i) => (
+                <div key={i} className="fixture-card">
+                  <div className="fixture-teams">
+                    <span className={`fixture-team ${f.home === 'Chelsea' ? 'chelsea' : ''}`}>{f.home}</span>
+                    <span className={`fixture-team ${f.away === 'Chelsea' ? 'chelsea' : ''}`}>{f.away}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="fixture-meta">
+                    <div className="fixture-date">{f.date}</div>
+                    <div className="fixture-time">{f.time}</div>
+                    <div className="fixture-comp">{f.comp}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -1733,10 +1815,8 @@ export default function App() {
             </div>
             <div className="footer-col">
               <h5>Shop</h5>
+              <a onClick={() => scrollTo('raffle')}>Raffle Tickets</a>
               <a onClick={() => { setFilter('apparel'); scrollTo('shop'); }}>Apparel</a>
-              <a onClick={() => { setFilter('hats'); scrollTo('shop'); }}>Hats</a>
-              <a onClick={() => { setFilter('drinkware'); scrollTo('shop'); }}>Drinkware</a>
-              <a onClick={() => { setFilter('accessories'); scrollTo('shop'); }}>Accessories</a>
               <a onClick={() => { setFilter('flags'); scrollTo('shop'); }}>Flags</a>
             </div>
             <div className="footer-col">
